@@ -35,7 +35,9 @@ message LoginResponse {
   scylla.common.v1.UserId user_id = 2;
 }
 
-message ValidateTokenRequest { string token = 1; }
+message ValidateTokenRequest {
+  string token = 1;
+}
 
 // The response always sets exactly one arm of `result`.
 message ValidateTokenResponse {
@@ -50,6 +52,8 @@ message ValidateTokenResponse {
   message Invalid {}
 }
 
-message RevokeTokenRequest { string token = 1; }
+message RevokeTokenRequest {
+  string token = 1;
+}
 
 message RevokeTokenResponse {}

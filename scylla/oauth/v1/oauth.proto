@@ -33,10 +33,14 @@ message GetAuthUrlRequest {
 }
 
 // `url` is the full GitHub authorize URL. Redirect the browser to it.
-message GetAuthUrlResponse { string url = 1; }
+message GetAuthUrlResponse {
+  string url = 1;
+}
 
 // `code` is the `code` query parameter GitHub appended to the redirect URI.
-message CallbackRequest { string code = 1; }
+message CallbackRequest {
+  string code = 1;
+}
 
 message CallbackResponse {
   // Opaque session token. The session expires 24 hours after this call.
@@ -56,7 +60,9 @@ message CallbackResponse {
   // GitHub email as email, then linked the identity to it. It created an
   // organization named "<login>'s organization" (organization_id) and
   // granted the user the organization-admin role on it.
-  message NewAccount { scylla.common.v1.OrganizationId organization_id = 1; }
+  message NewAccount {
+    scylla.common.v1.OrganizationId organization_id = 1;
+  }
   // The GitHub identity was already linked to an account, or the GitHub email
   // matched an existing account's email. In the second case the server links
   // the identity to that account, so later logins match by identity.

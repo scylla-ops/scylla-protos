@@ -124,13 +124,21 @@ message JobStatus {
 
   message JobStarted {}
   message JobCompleted {}
-  message JobFailed { string error = 1; }
+  message JobFailed {
+    string error = 1;
+  }
 
-  message NodeStarted { scylla.common.v1.NodeId node_id = 1; }
-  message NodeCompleted { scylla.common.v1.NodeId node_id = 1; }
+  message NodeStarted {
+    scylla.common.v1.NodeId node_id = 1;
+  }
+  message NodeCompleted {
+    scylla.common.v1.NodeId node_id = 1;
+  }
   // The node did not run, usually because a dependency failed or the job
   // stopped before reaching it.
-  message NodeSkipped { scylla.common.v1.NodeId node_id = 1; }
+  message NodeSkipped {
+    scylla.common.v1.NodeId node_id = 1;
+  }
   message NodeFailed {
     scylla.common.v1.NodeId node_id = 1;
     string error = 2;

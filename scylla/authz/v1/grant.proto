@@ -55,9 +55,13 @@ message CreateGrantRequest {
 
 // The grant with its new grant_id. When the grant already existed this id is
 // not stored; ListGrants returns the original one.
-message CreateGrantResponse { Grant grant = 1; }
+message CreateGrantResponse {
+  Grant grant = 1;
+}
 
-message RevokeGrantRequest { scylla.common.v1.GrantId grant_id = 1; }
+message RevokeGrantRequest {
+  scylla.common.v1.GrantId grant_id = 1;
+}
 
 message RevokeGrantResponse {}
 
@@ -77,7 +81,9 @@ message ListGrantsRequest {
   optional ScopeRef scope = 1;
 }
 
-message ListGrantsResponse { repeated Grant grants = 1; }
+message ListGrantsResponse {
+  repeated Grant grants = 1;
+}
 
 message ListGrantableRolesRequest {
   // Set: only roles of this scope kind. SCOPE_KIND_UNSPECIFIED is rejected.
@@ -106,4 +112,6 @@ message GrantableRole {
   string description = 4;
 }
 
-message ListGrantableRolesResponse { repeated GrantableRole roles = 1; }
+message ListGrantableRolesResponse {
+  repeated GrantableRole roles = 1;
+}

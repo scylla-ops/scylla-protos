@@ -147,8 +147,12 @@ message ScopeRef {
   }
 
   message System {}
-  message Organization { scylla.common.v1.OrganizationId organization_id = 1; }
-  message Project { scylla.common.v1.ProjectId project_id = 1; }
+  message Organization {
+    scylla.common.v1.OrganizationId organization_id = 1;
+  }
+  message Project {
+    scylla.common.v1.ProjectId project_id = 1;
+  }
 }
 
 // Who holds a grant: a user or an app (a machine principal such as an agent).
@@ -159,8 +163,12 @@ message PrincipalRef {
     App app = 2;
   }
 
-  message User { scylla.common.v1.UserId user_id = 1; }
-  message App { scylla.common.v1.AppId app_id = 1; }
+  message User {
+    scylla.common.v1.UserId user_id = 1;
+  }
+  message App {
+    scylla.common.v1.AppId app_id = 1;
+  }
 }
 
 // One entry of RoleService.ListAuthzVocabulary.
@@ -187,5 +195,7 @@ message Access {
   // holds neither PERMISSION_UNSPECIFIED nor an unenforced value. In an
   // EffectiveScope it is the union across the roles held at that scope,
   // without duplicates.
-  message Restricted { repeated Permission permissions = 1; }
+  message Restricted {
+    repeated Permission permissions = 1;
+  }
 }

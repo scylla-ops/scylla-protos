@@ -126,18 +126,32 @@ message CreateAgentResponse {
   string secret = 2;
 }
 
-message GetAgentRequest { scylla.common.v1.AppId agent_id = 1; }
+message GetAgentRequest {
+  scylla.common.v1.AppId agent_id = 1;
+}
 
-message GetAgentResponse { Agent agent = 1; }
+message GetAgentResponse {
+  Agent agent = 1;
+}
 
-message ListAgentsRequest { scylla.common.v1.OrganizationId organization_id = 1; }
+message ListAgentsRequest {
+  scylla.common.v1.OrganizationId organization_id = 1;
+}
 
-message ListAgentsResponse { repeated Agent agents = 1; }
+message ListAgentsResponse {
+  repeated Agent agents = 1;
+}
 
-message GetAgentStatsRequest { scylla.common.v1.AppId agent_id = 1; }
+message GetAgentStatsRequest {
+  scylla.common.v1.AppId agent_id = 1;
+}
 
-message GetAgentStatsResponse { AgentStats stats = 1; }
+message GetAgentStatsResponse {
+  AgentStats stats = 1;
+}
 
-message DeleteAgentRequest { scylla.common.v1.AppId agent_id = 1; }
+message DeleteAgentRequest {
+  scylla.common.v1.AppId agent_id = 1;
+}
 
 message DeleteAgentResponse {}

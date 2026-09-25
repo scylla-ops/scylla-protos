@@ -85,16 +85,26 @@ message CreateAppResponse {
   string secret = 2;
 }
 
-message GetAppRequest { scylla.common.v1.AppId app_id = 1; }
+message GetAppRequest {
+  scylla.common.v1.AppId app_id = 1;
+}
 
-message GetAppResponse { App app = 1; }
+message GetAppResponse {
+  App app = 1;
+}
 
-message ListAppsRequest { scylla.common.v1.OrganizationId organization_id = 1; }
+message ListAppsRequest {
+  scylla.common.v1.OrganizationId organization_id = 1;
+}
 
 // Every App of the organization, active or not, newest first. No pagination.
-message ListAppsResponse { repeated App apps = 1; }
+message ListAppsResponse {
+  repeated App apps = 1;
+}
 
-message DeleteAppRequest { scylla.common.v1.AppId app_id = 1; }
+message DeleteAppRequest {
+  scylla.common.v1.AppId app_id = 1;
+}
 
 message DeleteAppResponse {}
 
@@ -104,7 +114,9 @@ message SetAppActiveRequest {
 }
 
 // The App as stored after the change.
-message SetAppActiveResponse { App app = 1; }
+message SetAppActiveResponse {
+  App app = 1;
+}
 
 message CreateAppSecretRequest {
   scylla.common.v1.AppId app_id = 1;
@@ -118,12 +130,18 @@ message CreateAppSecretResponse {
   string secret = 2;
 }
 
-message ListAppSecretsRequest { scylla.common.v1.AppId app_id = 1; }
+message ListAppSecretsRequest {
+  scylla.common.v1.AppId app_id = 1;
+}
 
 // Every secret of the App, enabled or not, newest first. No pagination.
-message ListAppSecretsResponse { repeated AppSecret app_secrets = 1; }
+message ListAppSecretsResponse {
+  repeated AppSecret app_secrets = 1;
+}
 
-message RevokeAppSecretRequest { scylla.common.v1.AppSecretId app_secret_id = 1; }
+message RevokeAppSecretRequest {
+  scylla.common.v1.AppSecretId app_secret_id = 1;
+}
 
 message RevokeAppSecretResponse {}
 
@@ -133,4 +151,6 @@ message SetAppSecretEnabledRequest {
 }
 
 // The secret's metadata as stored after the change.
-message SetAppSecretEnabledResponse { AppSecret app_secret = 1; }
+message SetAppSecretEnabledResponse {
+  AppSecret app_secret = 1;
+}

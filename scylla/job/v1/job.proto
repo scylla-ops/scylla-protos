@@ -83,7 +83,9 @@ message Job {
   // No agent has started the job yet.
   message Pending {}
   // An agent reported the job started.
-  message Running { google.protobuf.Timestamp started_at = 1; }
+  message Running {
+    google.protobuf.Timestamp started_at = 1;
+  }
   // `started_at` is absent when the job ended before an agent started it.
   message Terminal {
     JobOutcome outcome = 1;
@@ -91,9 +93,15 @@ message Job {
     google.protobuf.Timestamp finished_at = 3;
   }
 
-  message Human { scylla.common.v1.UserId user_id = 1; }
-  message App { scylla.common.v1.AppId app_id = 1; }
-  message Cron { scylla.common.v1.TriggerId trigger_id = 1; }
+  message Human {
+    scylla.common.v1.UserId user_id = 1;
+  }
+  message App {
+    scylla.common.v1.AppId app_id = 1;
+  }
+  message Cron {
+    scylla.common.v1.TriggerId trigger_id = 1;
+  }
   message Webhook {
     scylla.common.v1.TriggerId trigger_id = 1;
     // The sender's `X-Scylla-Delivery` header, else `X-GitHub-Delivery`.
@@ -112,7 +120,9 @@ message JobNode {
   }
 
   message Pending {}
-  message Running { google.protobuf.Timestamp started_at = 1; }
+  message Running {
+    google.protobuf.Timestamp started_at = 1;
+  }
   // `started_at` is absent when the node was skipped or cancelled before it
   // started.
   message Finished {
@@ -134,15 +144,23 @@ message JobLogEntry {
   google.protobuf.Timestamp timestamp = 6;
 }
 
-message GetJobRequest { scylla.common.v1.JobId job_id = 1; }
+message GetJobRequest {
+  scylla.common.v1.JobId job_id = 1;
+}
 
-message GetJobResponse { Job job = 1; }
+message GetJobResponse {
+  Job job = 1;
+}
 
-message DeleteJobRequest { scylla.common.v1.JobId job_id = 1; }
+message DeleteJobRequest {
+  scylla.common.v1.JobId job_id = 1;
+}
 
 message DeleteJobResponse {}
 
-message ListJobsRequest { scylla.common.v1.PaginationRequest pagination = 1; }
+message ListJobsRequest {
+  scylla.common.v1.PaginationRequest pagination = 1;
+}
 
 message ListJobsResponse {
   repeated Job jobs = 1;
@@ -198,4 +216,6 @@ message TailJobLogsRequest {
   scylla.common.v1.NodeId node_id = 2;
 }
 
-message TailJobLogsResponse { JobLogEntry log = 1; }
+message TailJobLogsResponse {
+  JobLogEntry log = 1;
+}

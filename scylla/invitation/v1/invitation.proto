@@ -69,13 +69,21 @@ message CreateInvitationRequest {
   scylla.common.v1.RoleId role = 3;
 }
 
-message CreateInvitationResponse { Invitation invitation = 1; }
+message CreateInvitationResponse {
+  Invitation invitation = 1;
+}
 
-message ListInvitationsRequest { scylla.common.v1.OrganizationId organization_id = 1; }
+message ListInvitationsRequest {
+  scylla.common.v1.OrganizationId organization_id = 1;
+}
 
-message ListInvitationsResponse { repeated Invitation invitations = 1; }
+message ListInvitationsResponse {
+  repeated Invitation invitations = 1;
+}
 
-message RevokeInvitationRequest { scylla.common.v1.InvitationId invitation_id = 1; }
+message RevokeInvitationRequest {
+  scylla.common.v1.InvitationId invitation_id = 1;
+}
 
 message RevokeInvitationResponse {}
 

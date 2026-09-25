@@ -149,7 +149,9 @@ message FireObservation {
   message Succeeded {}
   // The fire raised an error. `error` holds the recorded status text: the
   // server writes "error", with no failure detail.
-  message Failed { string error = 1; }
+  message Failed {
+    string error = 1;
+  }
 }
 
 // ── CRUD ───────────────────────────────────────────────────────────────────
@@ -174,9 +176,13 @@ message CreateTriggerResponse {
   optional string webhook_secret = 2;
 }
 
-message GetTriggerRequest { scylla.common.v1.TriggerId trigger_id = 1; }
+message GetTriggerRequest {
+  scylla.common.v1.TriggerId trigger_id = 1;
+}
 
-message GetTriggerResponse { Trigger trigger = 1; }
+message GetTriggerResponse {
+  Trigger trigger = 1;
+}
 
 message UpdateTriggerRequest {
   scylla.common.v1.TriggerId trigger_id = 1;
@@ -192,24 +198,38 @@ message UpdateTriggerRequest {
   }
 }
 
-message UpdateTriggerResponse { Trigger trigger = 1; }
+message UpdateTriggerResponse {
+  Trigger trigger = 1;
+}
 
-message DeleteTriggerRequest { scylla.common.v1.TriggerId trigger_id = 1; }
+message DeleteTriggerRequest {
+  scylla.common.v1.TriggerId trigger_id = 1;
+}
 
 message DeleteTriggerResponse {}
 
-message ListPipelineTriggersRequest { scylla.common.v1.PipelineId pipeline_id = 1; }
+message ListPipelineTriggersRequest {
+  scylla.common.v1.PipelineId pipeline_id = 1;
+}
 
-message ListPipelineTriggersResponse { repeated Trigger triggers = 1; }
+message ListPipelineTriggersResponse {
+  repeated Trigger triggers = 1;
+}
 
 message SetTriggerEnabledRequest {
   scylla.common.v1.TriggerId trigger_id = 1;
   bool enabled = 2;
 }
 
-message SetTriggerEnabledResponse { Trigger trigger = 1; }
+message SetTriggerEnabledResponse {
+  Trigger trigger = 1;
+}
 
-message FireTriggerNowRequest { scylla.common.v1.TriggerId trigger_id = 1; }
+message FireTriggerNowRequest {
+  scylla.common.v1.TriggerId trigger_id = 1;
+}
 
 // The Job's origin names this trigger.
-message FireTriggerNowResponse { scylla.common.v1.JobId job_id = 1; }
+message FireTriggerNowResponse {
+  scylla.common.v1.JobId job_id = 1;
+}

@@ -52,11 +52,17 @@ message CreateUserRequest {
   optional scylla.common.v1.Email email = 3;
 }
 
-message CreateUserResponse { User user = 1; }
+message CreateUserResponse {
+  User user = 1;
+}
 
-message GetUserRequest { scylla.common.v1.UserId user_id = 1; }
+message GetUserRequest {
+  scylla.common.v1.UserId user_id = 1;
+}
 
-message GetUserResponse { User user = 1; }
+message GetUserResponse {
+  User user = 1;
+}
 
 message UpdateUserRequest {
   scylla.common.v1.UserId user_id = 1;
@@ -65,13 +71,19 @@ message UpdateUserRequest {
   optional string username = 2;
 }
 
-message UpdateUserResponse { User user = 1; }
+message UpdateUserResponse {
+  User user = 1;
+}
 
-message DeleteUserRequest { scylla.common.v1.UserId user_id = 1; }
+message DeleteUserRequest {
+  scylla.common.v1.UserId user_id = 1;
+}
 
 message DeleteUserResponse {}
 
-message ListUsersRequest { scylla.common.v1.PaginationRequest pagination = 1; }
+message ListUsersRequest {
+  scylla.common.v1.PaginationRequest pagination = 1;
+}
 
 message ListUsersResponse {
   repeated User users = 1;

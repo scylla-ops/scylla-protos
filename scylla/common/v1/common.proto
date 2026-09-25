@@ -39,66 +39,96 @@ package scylla.common.v1;
 // field's own comment says otherwise. Timestamps use
 // `google.protobuf.Timestamp`.
 
-message UserId { string value = 1; }
+message UserId {
+  string value = 1;
+}
 // The top-level tenant. Projects, apps and invitations each belong to one
 // organization.
-message OrganizationId { string value = 1; }
+message OrganizationId {
+  string value = 1;
+}
 // A project belongs to one organization and owns pipelines and secrets.
-message ProjectId { string value = 1; }
+message ProjectId {
+  string value = 1;
+}
 // A pipeline is the stored node graph inside a project. It is the definition,
 // not a run; one run is a Job.
-message PipelineId { string value = 1; }
+message PipelineId {
+  string value = 1;
+}
 // One run of a pipeline. PipelineService.RunPipeline and
 // TriggerService.FireTriggerNow return it. Read the run with JobService.GetJob.
-message JobId { string value = 1; }
+message JobId {
+  string value = 1;
+}
 // One captured output line of a job. Only JobLogEntry carries it; no RPC
 // takes it.
-message JobLogId { string value = 1; }
+message JobLogId {
+  string value = 1;
+}
 // A machine principal owned by an organization. It authenticates with one of
 // its secrets through AppAuthService.IssueToken.
-message AppId { string value = 1; }
+message AppId {
+  string value = 1;
+}
 // One credential of an app. The server stores only a hash. It returns the
 // plaintext once: in AppService.CreateAppResponse.secret for the first
 // secret, in AppService.CreateAppSecretResponse.secret for each later one.
 // Use this id with AppService.RevokeAppSecret and
 // AppService.SetAppSecretEnabled.
-message AppSecretId { string value = 1; }
+message AppSecretId {
+  string value = 1;
+}
 // An invitation to join an organization. Not the acceptance credential:
 // InvitationAcceptService.AcceptInvitation takes the token sent by email.
-message InvitationId { string value = 1; }
+message InvitationId {
+  string value = 1;
+}
 // A project secret. Distinct from AppSecretId. A pipeline references a secret
 // by name through `EnvVar.secret_ref`, not by this id.
-message SecretId { string value = 1; }
+message SecretId {
+  string value = 1;
+}
 // A trigger belongs to one pipeline and starts runs of it. Each fire creates a
 // Job.
-message TriggerId { string value = 1; }
+message TriggerId {
+  string value = 1;
+}
 // One grant: a principal holds a role within a scope. GrantService.CreateGrant
 // returns it; GrantService.RevokeGrant takes it.
-message GrantId { string value = 1; }
+message GrantId {
+  string value = 1;
+}
 // Not always a ULID. A builtin role's id is its stable key, for example
 // `organization-admin`. A custom role created with RoleService.CreateRole gets
 // a lowercase ULID. Grants and invitations reference a role by this id.
-message RoleId { string value = 1; }
+message RoleId {
+  string value = 1;
+}
 // Not a ULID: the caller chooses it. The server trims surrounding whitespace
 // and accepts a non-empty value of at most 128 lowercase ASCII letters,
 // digits, `-` and `_`. It must be unique within its pipeline. The server
 // rejects any other value.
-message NodeId { string value = 1; }
+message NodeId {
+  string value = 1;
+}
 
 // The server trims and lowercases the value on receipt. It accepts at most
 // 320 bytes in which the first `@` separates a non-empty local part from a
 // domain. The domain contains a dot and does not start or end with one. The
 // server rejects any other value. Values the server returns are already
 // lowercase.
-message Email { string value = 1; }
+message Email {
+  string value = 1;
+}
 
 // The process output stream that produced a log line. Lines the server
 // returns always carry STDOUT or STDERR. The server stores a line appended
 // with UNSPECIFIED or an unknown value as STDOUT.
 enum LogStream {
   LOG_STREAM_UNSPECIFIED = 0;
-  LOG_STREAM_STDOUT      = 1;
-  LOG_STREAM_STDERR      = 2;
+  LOG_STREAM_STDOUT = 1;
+  LOG_STREAM_STDERR = 2;
 }
 
 // Offset pagination for every List RPC that takes it. When the message is
