@@ -1,10 +1,10 @@
 # scylla-protos
 
-This repository contains the Protocol Buffers contract of Scylla. It contains
-the `.proto` files only. It does not contain generated code.
+This repository contains the Protocol Buffers contract of Scylla and the Rust
+crate that compiles it, `scylla-proto`.
 
-The Scylla backend and the Scylla web UI use this contract. They use one
-pinned version of it together.
+The Scylla backend and the Scylla web UI use this contract. Each one pins a
+commit of this repository.
 
 ## Layout
 
@@ -21,49 +21,48 @@ Imports use the same paths, for example
 Each package has a version suffix. A breaking change goes into a new `v2`
 directory next to `v1`. Do not change `v1` in a breaking way.
 
+The root is also a Cargo package. `build.rs` compiles the files with
+`tonic-prost-build`, and `src/lib.rs` exposes one module per package. The crate
+holds the generated code only. The conversions between these types and the
+Scylla domain types stay in the backend.
+
 ## Consumers
 
-**Backend** (`scylla-ops/scylla`). The backend has this repository as a git
-submodule at `crates/scylla-proto/proto`. The submodule pins one commit. The
-`scylla-proto` crate compiles the files with `tonic-prost-build` and uses that
-directory as the only include root.
+**Backend** (`scylla-ops/scylla`). The backend gets the crate as a cargo git
+dependency, pinned on one commit:
 
-The submodule URL is HTTPS:
-
-```
-https://github.com/scylla-ops/scylla-protos.git
+```toml
+scylla-proto = { git = "https://github.com/scylla-ops/scylla-protos.git", rev = "<commit>" }
 ```
 
-This repository is public. Thus CI and cargo git dependencies (for example the
-Enterprise repository, which depends on the backend by git tag) can get the
-submodule without an SSH key or a token.
+This repository is public. Thus CI, Docker builds and cargo git dependencies
+(for example the Enterprise repository, which depends on the backend by git
+tag) get it without an SSH key or a token.
 
-**Web UI** (`apps/frontend` in the backend repository). The web UI reads the
-same submodule directory, `crates/scylla-proto/proto`, and generates its
-TypeScript clients from it with `protobuf-ts`. Thus the backend and the web UI
-always use the same commit of this repository. There is no npm package and no
-Buf Schema Registry module.
-
-To get the files after you clone the backend:
-
-```sh
-git clone --recurse-submodules https://github.com/scylla-ops/scylla.git
-# or, in an existing clone:
-git submodule update --init
-```
+**Web UI** (`scylla-ops/scylla-web`). The web UI has this repository as a git
+submodule at `protos/` and generates its TypeScript clients from it with
+`protobuf-ts`. There is no npm package and no Buf Schema Registry module.
 
 ## Change the contract
 
-1. Change the `.proto` files here.
-2. Run `just lint`, `just fmt` and `just breaking`.
+1. Change the `.proto` files here. Add a new file to the list in `build.rs`.
+2. Run `just lint`, `just fmt`, `just breaking` and `just build`.
 3. Commit and push here.
-4. In the backend repository, move the submodule to the new commit and commit
-   the new pin with the code that uses it.
+4. In the backend, change the `rev` of the dependency. In the web UI, move the
+   submodule to the new commit.
+
+To try a change in the backend before you push, add a local patch to the
+backend's `.cargo/config.toml`, and do not commit it:
+
+```toml
+[patch."https://github.com/scylla-ops/scylla-protos.git"]
+scylla-proto = { path = "../scylla-protos" }
+```
 
 ## Checks
 
-Install [buf](https://buf.build/docs/installation) and
-[just](https://just.systems).
+Install [buf](https://buf.build/docs/installation),
+[just](https://just.systems), `protoc` and the Rust toolchain.
 
 | Command | What it does |
 |---|---|
@@ -71,6 +70,7 @@ Install [buf](https://buf.build/docs/installation) and
 | `just fmt` | Runs `buf format -w`. It changes the files. |
 | `just breaking` | Runs `buf breaking` against the `main` branch of this repository. |
 | `just breaking '<ref>'` | Runs `buf breaking` against a different buf input, for example `'.git#tag=v0.4.0'`. |
+| `just build` | Builds the crate and runs clippy. |
 
 The breaking check uses the `FILE` rules. The rules and the lint exceptions are
 in `buf.yaml`, with the reasons.

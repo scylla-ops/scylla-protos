@@ -1,0 +1,17 @@
+[package]
+name = "scylla-proto"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/scylla-ops/scylla-protos"
+description = "Rust bindings of the Scylla protobuf contract"
+include = ["build.rs", "src/**", "scylla/**/*.proto"]
+
+[dependencies]
+tonic = "0.14"
+tonic-prost = "0.14"
+prost = "0.14"
+prost-types = "0.14"
+
+[build-dependencies]
+tonic-prost-build = "0.14"
