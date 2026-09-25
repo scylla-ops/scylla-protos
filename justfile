@@ -18,8 +18,3 @@ fmt:
 [no-exit-message]
 breaking against='.git#branch=main':
     buf breaking --against '{{against}}'
-
-# Build the crate and run clippy
-[no-exit-message]
-build:
-    cargo clippy --all-targets -- -D warnings
