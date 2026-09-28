@@ -9,25 +9,29 @@ import "scylla/common/v1/common.proto";
 // bind a role to it with GrantService.CreateGrant before it can act.
 service AppService {
   // Requires `createApp` on the organization. Creates the App with one
-  // enabled secret labelled "default" and returns its plaintext once.
+  // enabled secret labelled "default" and returns its plaintext once. The
+  // name "trigger-runner" is reserved: INVALID_ARGUMENT.
   rpc CreateApp(CreateAppRequest) returns (CreateAppResponse);
   // Requires `readApp` on the App.
   rpc GetApp(GetAppRequest) returns (GetAppResponse);
   // Requires `listAppsByOrganization` on the organization.
   rpc ListApps(ListAppsRequest) returns (ListAppsResponse);
   // Requires `deleteApp` on the App. Deletes the App with its secrets, its
-  // tokens and its grants. Once the check passes, an unknown app_id succeeds.
-  // Requests made with one of those tokens fail with UNAUTHENTICATED from
-  // then on.
+  // tokens and its grants. Requests made with one of those tokens fail with
+  // UNAUTHENTICATED from then on. Once the check passes, an unknown app_id
+  // fails with NOT_FOUND, and the trigger-runner App (see
+  // scylla.trigger.v1.TriggerService) fails with FAILED_PRECONDITION. After
+  // the delete, the server closes the App's open AgentService.Open stream.
   rpc DeleteApp(DeleteAppRequest) returns (DeleteAppResponse);
   // Requires `deleteApp` on the App. With is_active false, the App's tokens
   // fail on their next request, AppAuthService.IssueToken fails and the
   // server closes the App's open AgentService.Open stream. True restores the
-  // unexpired tokens.
+  // unexpired tokens. The trigger-runner App fails with FAILED_PRECONDITION.
   rpc SetAppActive(SetAppActiveRequest) returns (SetAppActiveResponse);
 
   // Requires `deleteApp` on the App. Adds one more enabled secret and returns
-  // its plaintext once.
+  // its plaintext once. The trigger-runner App fails with
+  // FAILED_PRECONDITION: it never holds a secret.
   rpc CreateAppSecret(CreateAppSecretRequest) returns (CreateAppSecretResponse);
   // Requires `readApp` on the App. Metadata only, never a plaintext. Once the
   // check passes, an unknown app_id yields an empty list.
@@ -75,7 +79,8 @@ message AppSecret {
 
 message CreateAppRequest {
   scylla.common.v1.OrganizationId organization_id = 1;
-  // Trimmed; 1 to 255 bytes; unique within the organization.
+  // Trimmed; 1 to 255 bytes; unique within the organization. The name
+  // "trigger-runner" is reserved: INVALID_ARGUMENT.
   string name = 2;
 }
 

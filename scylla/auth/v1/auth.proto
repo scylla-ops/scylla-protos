@@ -21,7 +21,8 @@ service AuthService {
 }
 
 message LoginRequest {
-  // Email when the value contains '@', otherwise a username.
+  // Email when the value contains '@', otherwise a username. A username
+  // never contains '@'.
   string identifier = 1;
   // 8 to 255 characters, not whitespace only. Login checks this before the
   // credentials.
@@ -30,7 +31,7 @@ message LoginRequest {
 
 message LoginResponse {
   // Opaque. Expires 24 hours after login; use does not extend it. Call Login
-  // again for a new token.
+  // again for a new token. The server stores only its SHA-256 digest.
   string token = 1;
   scylla.common.v1.UserId user_id = 2;
 }

@@ -4,23 +4,24 @@ syntax = "proto3";
 // and scylla.agent.v1.AgentNode (received by the agent). A step runs in the
 // node's working directory and environment. Exit status 0 completes the node.
 // Any other status, death by signal or a failed spawn fails the node and the
-// job.
+// job. The agent writes a spawn error to the node's stderr log. When the step's process exits, or the agent stops the node, the agent
+// kills every process of the step's process group, so a process started in
+// the background does not outlive its node.
 package scylla.exec.v1;
 
 // Interpreter for a ScriptStep. Each shell runs with `-e`: a failing command
 // ends the script with that command's exit status. Only SHELL_BASH adds
 // `pipefail`; under SHELL_SH a pipeline reports its last command's status.
+// The agent looks the shell up as it looks up ExecStep.command. A PATH in the
+// node env applies to the processes the script starts.
 enum Shell {
   // Runs as SHELL_SH. CreatePipeline and UpdatePipeline store any unknown
   // value as SHELL_SH, so GetPipeline returns SHELL_SH for it. An agent that
   // receives one also runs SHELL_SH.
   SHELL_UNSPECIFIED = 0;
-  // Runs `sh -e <script file>`. The agent looks `sh` up on its PATH; the
-  // reference agent image always ships it.
+  // Runs `sh -e <script file>`. The reference agent image always ships `sh`.
   SHELL_SH = 1;
-  // Runs `bash --noprofile --norc -o pipefail -e <script file>`. The agent
-  // looks `bash` up on its PATH. When it is absent, the node fails at spawn
-  // and the agent writes the error to the node's stderr log.
+  // Runs `bash --noprofile --norc -o pipefail -e <script file>`.
   SHELL_BASH = 2;
 }
 
@@ -28,10 +29,12 @@ enum Shell {
 // `args` to the OS as the argv vector. It does not word-split, quote or
 // expand them, so `$VAR`, globs and pipes are literal text.
 message ExecStep {
-  // The agent looks a bare name up on its PATH and uses a path as given.
-  // CreatePipeline and UpdatePipeline reject a blank or whitespace-only value.
+  // The agent looks a bare name up on its own PATH first, then on a PATH set
+  // in the node env, and uses a path as given.
+  // Trimmed; 1 to 4096 bytes. CreatePipeline and UpdatePipeline reject a
+  // blank value.
   string command = 1;
-  // May be empty.
+  // At most 256 entries, each at most 65536 bytes. May be empty.
   repeated string args = 2;
 }
 
@@ -41,6 +44,7 @@ message ExecStep {
 // pipes, globs, redirects and `$VAR` expansion.
 message ScriptStep {
   // CreatePipeline and UpdatePipeline reject a blank or whitespace-only value.
+  // At most 1048576 bytes (1 MiB).
   string script = 1;
   Shell shell = 2;
 }

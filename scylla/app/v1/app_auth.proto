@@ -24,7 +24,7 @@ message IssueTokenRequest {
 }
 
 message IssueTokenResponse {
-  // Opaque; do not parse it.
+  // Opaque; do not parse it. The server stores only its SHA-256 digest.
   string token = 1;
   // 30 days after issue. After it the token fails with UNAUTHENTICATED; the
   // message is "Token has expired" while the secret stays enabled and the App

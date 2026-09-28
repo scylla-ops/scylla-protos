@@ -11,24 +11,29 @@ import "scylla/common/v1/common.proto";
 // project. A grant held at an ancestor scope satisfies it. A change is live
 // when the call returns: the next authorization check sees it.
 service GrantService {
-  // FAILED_PRECONDITION when a user gets a project grant without holding a
-  // grant on the project's organization (apps are exempt). Also
-  // FAILED_PRECONDITION when at system or organization scope the caller
-  // grants permissions it does not hold there or at system scope; full
-  // control at either scope allows any role, and project scope is not
-  // checked. Repeating an existing grant (same principal, role and scope)
-  // succeeds without adding a second one.
+  // INVALID_ARGUMENT when the role is unknown, when its scope kind differs
+  // from `scope`, or when it is an agent role (ROLE_KIND_AGENT) and the
+  // principal is a user. FAILED_PRECONDITION when the principal or the scope
+  // does not exist; when an app gets a grant outside the organization that
+  // owns it; when a user gets a project grant without a grant on the
+  // project's organization; when the caller grants a permission it does not
+  // hold at the scope, at its organization or at system scope (full control
+  // there allows any role). Repeating an existing grant (same principal, role
+  // and scope) returns the stored grant and adds none.
   rpc CreateGrant(CreateGrantRequest) returns (CreateGrantResponse);
-  // The last user holding an owner role (system-admin, organization-admin or
-  // project-admin) at a scope cannot be revoked: FAILED_PRECONDITION; apps
-  // holding one do not count. An unknown grant_id needs `manageSystemGrants`
-  // and then succeeds without change. An app's connected agent stream closes.
+  // Revoking the last grant of a user that holds system-admin, or
+  // organization-admin on an organization, when no other user holds it there
+  // fails with FAILED_PRECONDITION; apps do not count, and a project may lose
+  // its last project-admin. Revoking a user's last grant on an organization
+  // also removes the user's grants on its projects, as RevokeAllAccess does.
+  // An unknown grant_id needs `manageSystemGrants` and then succeeds without
+  // change. An app's connected agent stream closes.
   rpc RevokeGrant(RevokeGrantRequest) returns (RevokeGrantResponse);
   // Removes every grant the principal holds at the scope and below it: an
   // organization covers its projects, the system every organization and
   // project. A system-scoped grant is never removed. FAILED_PRECONDITION when
-  // the principal, user or app, holds an owner role at that scope and no
-  // other user holds one there. An app's connected agent stream closes.
+  // the removal would leave the system or an organization without a user
+  // holding its admin role. An app's connected agent stream closes.
   rpc RevokeAllAccess(RevokeAllAccessRequest) returns (RevokeAllAccessResponse);
   // Not paginated.
   rpc ListGrants(ListGrantsRequest) returns (ListGrantsResponse);
@@ -53,8 +58,7 @@ message CreateGrantRequest {
   reserved 4;
 }
 
-// The grant with its new grant_id. When the grant already existed this id is
-// not stored; ListGrants returns the original one.
+// The stored grant. A repeated grant returns the original grant_id.
 message CreateGrantResponse {
   Grant grant = 1;
 }
@@ -93,9 +97,11 @@ message ListGrantableRolesRequest {
 // For display only: a role confers its permission set, not this tag.
 enum RoleKind {
   ROLE_KIND_UNSPECIFIED = 0;
-  // Full control of the scope. The owner roles; see RevokeGrant.
+  // Full control of the scope. system-admin and organization-admin are the
+  // owner roles; see RevokeGrant.
   ROLE_KIND_ADMIN = 1;
-  // For an app such as an agent; the server does not check the principal kind.
+  // Only an app may hold it: CreateGrant and CreateInvitation reject it for a
+  // user with INVALID_ARGUMENT.
   ROLE_KIND_AGENT = 2;
   // A human working inside the scope without administering it.
   ROLE_KIND_MEMBER = 3;

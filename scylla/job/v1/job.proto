@@ -12,7 +12,17 @@ import "scylla/common/v1/common.proto";
 service JobService {
   // Requires readJob on the job.
   rpc GetJob(GetJobRequest) returns (GetJobResponse);
-  // Requires deleteJob on the job. Any state; also deletes its log lines.
+  // Requires updateJob on the job. Ends a pending or running job as
+  // cancelled, and its nodes that have not finished become cancelled. The
+  // agent that holds the job gets a CancelJob frame; the control plane ignores
+  // what that agent still reports about the job. A job that has ended fails
+  // with FAILED_PRECONDITION. Fails with ABORTED and changes nothing when the
+  // job changed since the server read it; read it again and retry.
+  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
+  // Requires deleteJob on the job. Any state; also deletes its log lines. The
+  // agent that holds a pending or running job gets a CancelJob frame after
+  // the delete. Fails with ABORTED and changes nothing when the job changed
+  // since the server read it; read it again and retry.
   rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse);
   // Every job on the instance. Requires listJobs at system scope.
   rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
@@ -26,9 +36,9 @@ service JobService {
   rpc ListJobLogs(ListJobLogsRequest) returns (ListJobLogsResponse);
   // Requires readJobLogs on the job. Replays every stored line, then sends
   // new lines as the agent reports them, none twice. The stream ends when
-  // the agent reports the job complete or failed. A call made after that,
-  // or before an agent starts the job, ends after the replay. A slow reader
-  // can miss live lines; ListJobLogs holds the full record.
+  // the job ends. A call made after that, or before an agent starts the job,
+  // ends after the replay. A slow reader can miss live lines; ListJobLogs
+  // holds the full record.
   rpc TailJobLogs(TailJobLogsRequest) returns (stream TailJobLogsResponse);
 }
 
@@ -37,11 +47,15 @@ enum JobOutcome {
   JOB_OUTCOME_UNSPECIFIED = 0;
   // Every node completed.
   JOB_OUTCOME_COMPLETED = 1;
-  // A node failed, or the agent could not run the job.
+  // A node failed, or the agent could not run the job or stopped it when it
+  // shut down, or the control plane could not dispatch it: a secret_ref no
+  // longer resolves or the resolved job is too large.
   JOB_OUTCOME_FAILED = 2;
+  // JobService.CancelJob ended the job.
   JOB_OUTCOME_CANCELLED = 3;
-  // The agent disconnected before it reported a result. `Terminal.finished_at`
-  // is the time the server detected that.
+  // The agent stayed disconnected for 60 seconds after its last contact, or
+  // reconnected without the job, before it reported a result.
+  // `Terminal.finished_at` is the time the server detected that.
   JOB_OUTCOME_ORPHANED = 4;
 }
 
@@ -50,7 +64,7 @@ enum NodeOutcome {
   NODE_OUTCOME_UNSPECIFIED = 0;
   NODE_OUTCOME_COMPLETED = 1;
   NODE_OUTCOME_FAILED = 2;
-  // The job was cancelled before the node finished.
+  // The job ended before the node finished.
   NODE_OUTCOME_CANCELLED = 3;
   // Another node of the job failed; the agent skipped or stopped this one.
   NODE_OUTCOME_SKIPPED = 4;
@@ -80,8 +94,13 @@ message Job {
     Webhook webhook = 23;
   }
 
-  // No agent has started the job yet.
-  message Pending {}
+  // No agent has started the job yet. `agent_id` is set when the control
+  // plane placed the job on that agent. Unset, the job waits for a connected
+  // agent that holds executeJob on the pipeline and has no job that has not
+  // ended.
+  message Pending {
+    scylla.common.v1.AppId agent_id = 1;
+  }
   // An agent reported the job started.
   message Running {
     google.protobuf.Timestamp started_at = 1;
@@ -149,6 +168,14 @@ message GetJobRequest {
 }
 
 message GetJobResponse {
+  Job job = 1;
+}
+
+message CancelJobRequest {
+  scylla.common.v1.JobId job_id = 1;
+}
+
+message CancelJobResponse {
   Job job = 1;
 }
 

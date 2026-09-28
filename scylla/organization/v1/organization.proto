@@ -18,17 +18,23 @@ service OrganizationService {
   rpc GetOrganization(GetOrganizationRequest) returns (GetOrganizationResponse);
   // Requires `updateOrganization` on the organization. Only the fields set in
   // the request change; a request with no field set returns the organization
-  // unchanged.
+  // unchanged. Fails with ABORTED and changes nothing when the organization
+  // changed since the server read it; read it again and retry.
   rpc UpdateOrganization(UpdateOrganizationRequest) returns (UpdateOrganizationResponse);
   // Requires `updateOrganization` on the organization. Stores `is_active` as
   // given. Repeating the current value succeeds and leaves `updated_at`
-  // unchanged.
+  // unchanged. Fails with ABORTED and changes nothing when the organization
+  // changed since the server read it; read it again and retry.
   rpc SetOrganizationActive(SetOrganizationActiveRequest) returns (SetOrganizationActiveResponse);
   // Requires `deleteOrganization` on the organization. Cascades to the
   // organization's projects, pipelines, triggers, jobs, job logs, secrets,
   // apps, agents, invitations and custom roles. Revokes every grant scoped
   // to the organization or to one of its projects, and every grant held by
-  // one of its apps. The revocation is effective when the call returns.
+  // one of its apps. The revocation is effective when the call returns. The
+  // agents that hold its pending or running jobs get a CancelJob frame after
+  // the delete, and the open AgentService streams of its apps close. Fails
+  // with ABORTED and changes nothing when the organization changed since the
+  // server read it; read it again and retry.
   rpc DeleteOrganization(DeleteOrganizationRequest) returns (DeleteOrganizationResponse);
   // Requires `listOrganizations`. Every organization, inactive ones included,
   // newest first by `created_at`.
@@ -51,7 +57,7 @@ service OrganizationService {
 
 message Organization {
   scylla.common.v1.OrganizationId organization_id = 1;
-  // Trimmed; 1 to 255 bytes; unique across organizations.
+  // Trimmed; 1 to 255 bytes; not unique.
   string name = 2;
   // Trimmed; at most 1024 bytes; empty when unset.
   string description = 3;
@@ -71,7 +77,7 @@ message OrganizationMember {
 }
 
 message CreateOrganizationRequest {
-  // Trimmed; 1 to 255 bytes; unique across organizations.
+  // Trimmed; 1 to 255 bytes; not unique.
   string name = 1;
   // Trimmed; at most 1024 bytes. Absent: no description.
   optional string description = 2;
@@ -91,8 +97,7 @@ message GetOrganizationResponse {
 
 message UpdateOrganizationRequest {
   scylla.common.v1.OrganizationId organization_id = 1;
-  // Absent: unchanged. Trimmed; 1 to 255 bytes; must differ from every other
-  // organization's name; the current name is accepted.
+  // Absent: unchanged. Trimmed; 1 to 255 bytes; not unique.
   optional string name = 2;
   // Absent: unchanged. Set: replaces the description, an empty string
   // included. Trimmed; at most 1024 bytes.

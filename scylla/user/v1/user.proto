@@ -16,12 +16,16 @@ service UserService {
   // Requires `readUser` on user_id, or user_id equal to the caller's own id.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   // Requires `updateUser` on user_id, or user_id equal to the caller's own
-  // id. Only the username can change.
+  // id. Only the username can change. Fails with ABORTED and changes nothing
+  // when the user changed since the server read it; read it again and retry.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // Requires `deleteUser` on user_id; the caller's own id gets no exemption.
   // Also deletes the user's sessions, OAuth identities and the invitations it
   // sent, and removes every grant the user holds. Authorization reflects the
-  // removal at once.
+  // removal at once. Fails with ABORTED and changes nothing when the user
+  // changed since the server read it; read it again and retry.
+  // FAILED_PRECONDITION when the user is the last user holding system-admin,
+  // or organization-admin on an organization: appoint another first.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Requires `listUsers` at system scope. Every account, newest first.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
@@ -43,7 +47,8 @@ message User {
 }
 
 message CreateUserRequest {
-  // Trimmed; 1 to 255 bytes; unique across accounts.
+  // Trimmed; 1 to 255 bytes; no '@' (Login reads an identifier with '@' as an
+  // email); unique across accounts.
   string username = 1;
   // Plaintext; 8 to 255 characters; not whitespace only. The server stores
   // it as a hash and never returns it.

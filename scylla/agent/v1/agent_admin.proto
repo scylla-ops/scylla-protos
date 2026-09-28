@@ -23,17 +23,22 @@ service AgentAdminService {
   // PERMISSION_DENIED.
   rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
   // Requires `readAppStats` on agent_id. An App that is not an agent returns
-  // all-zero stats.
+  // all-zero stats. Once the check passes, an unknown agent_id fails with
+  // NOT_FOUND.
   rpc GetAgentStats(GetAgentStatsRequest) returns (GetAgentStatsResponse);
-  // Requires `deleteApp` on agent_id. Closes the agent's open stream, then
-  // deletes the App with its secrets, tokens, agent record and grants. Jobs
-  // the agent ran stay; a job still running on it ends as orphaned. Works on
-  // any App id the caller may delete, agent or not. Not undoable.
+  // The same call as AppService.DeleteApp: requires `deleteApp` on agent_id,
+  // deletes the App with its secrets, tokens, agent record and grants, then
+  // closes the agent's open stream. Jobs the agent ran stay; a job placed on
+  // it that has not started goes back to the pending pool, and a job still
+  // running on it ends as orphaned. Works on any App id the caller may delete,
+  // agent or not, except the trigger-runner App, which fails with
+  // FAILED_PRECONDITION. Once the check passes, an unknown agent_id fails with
+  // NOT_FOUND. Not undoable.
   rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse);
 }
 
-// One agent as seen by the control plane. `connected` and `in_flight` come
-// from the open stream; the other fields are stored.
+// One agent as seen by the control plane. `connected` comes from the open
+// stream; the other fields are stored.
 message Agent {
   // The app_id of the backing App in AppService.
   scylla.common.v1.AppId agent_id = 1;
@@ -50,8 +55,9 @@ message Agent {
   google.protobuf.Timestamp created_at = 7;
   // Changes when the App is enabled or disabled.
   google.protobuf.Timestamp updated_at = 8;
-  // Jobs dispatched on the open stream that have not yet reported completion
-  // or failure. 0 while `connected` is false.
+  // Jobs placed on the agent that have not ended. The count can stay above 0
+  // while `connected` is false, until the jobs go back to the pending pool or
+  // become orphaned.
   int32 in_flight = 9;
   // Unset until the first AgentHello. Survives disconnects; the next
   // AgentHello replaces it.
@@ -112,7 +118,8 @@ message DailyOutcome {
 
 message CreateAgentRequest {
   scylla.common.v1.OrganizationId organization_id = 1;
-  // Trimmed; 1 to 255 bytes; unique among the Apps of the organization.
+  // Trimmed; 1 to 255 bytes; unique among the Apps of the organization. The
+  // name "trigger-runner" is reserved: INVALID_ARGUMENT.
   string name = 2;
 }
 
