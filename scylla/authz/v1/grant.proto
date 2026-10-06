@@ -11,7 +11,8 @@ import "scylla/common/v1/common.proto";
 // project. A grant held at an ancestor scope satisfies it. A change is live
 // when the call returns: the next authorization check sees it.
 service GrantService {
-  // INVALID_ARGUMENT when the role is unknown, when its scope kind differs
+  // INVALID_ARGUMENT when the role is unknown or owned by another
+  // organization, when its scope kind differs
   // from `scope`, or when it is an agent role (ROLE_KIND_AGENT) and the
   // principal is a user. FAILED_PRECONDITION when the principal or the scope
   // does not exist; when an app gets a grant outside the organization that
@@ -37,8 +38,9 @@ service GrantService {
   rpc RevokeAllAccess(RevokeAllAccessRequest) returns (RevokeAllAccessResponse);
   // Not paginated.
   rpc ListGrants(ListGrantsRequest) returns (ListGrantsResponse);
-  // The compiled-in role catalog; no permission is checked. Custom roles are
-  // absent; CreateGrant accepts them and RoleService.ListRoles returns both.
+  // The roles a grant or an invitation may give: the platform roles, and
+  // with `organization_id` the roles of that organization. Without
+  // `organization_id` no permission is checked.
   rpc ListGrantableRoles(ListGrantableRolesRequest) returns (ListGrantableRolesResponse);
 }
 
@@ -92,6 +94,9 @@ message ListGrantsResponse {
 message ListGrantableRolesRequest {
   // Set: only roles of this scope kind. SCOPE_KIND_UNSPECIFIED is rejected.
   optional ScopeKind scope_kind = 1;
+  // Set: the platform roles and the roles of this organization; requires
+  // `readOrganization` there. Unset: the platform roles.
+  scylla.common.v1.OrganizationId organization_id = 2;
 }
 
 // For display only: a role confers its permission set, not this tag.
@@ -100,22 +105,23 @@ enum RoleKind {
   // Full control of the scope. system-admin and organization-admin are the
   // owner roles; see RevokeGrant.
   ROLE_KIND_ADMIN = 1;
-  // Only an app may hold it: CreateGrant and CreateInvitation reject it for a
-  // user with INVALID_ARGUMENT.
+  // Only an app may hold a role of this kind: CreateGrant and
+  // CreateInvitation reject it for a user with INVALID_ARGUMENT.
   ROLE_KIND_AGENT = 2;
   // A human working inside the scope without administering it.
   ROLE_KIND_MEMBER = 3;
 }
 
-// One entry of the compiled-in role catalog. The list is fixed for a given
-// server version.
+// A role the caller may pass as CreateGrantRequest.role.
 message GrantableRole {
   // The value to pass as CreateGrantRequest.role.
   scylla.common.v1.RoleId role_id = 1;
   ScopeKind scope_kind = 2;
   RoleKind kind = 3;
-  // Human-readable, in English.
   string description = 4;
+  string name = 5;
+  // Set for a role of that organization, absent for a platform role.
+  scylla.common.v1.OrganizationId owner_organization_id = 6;
 }
 
 message ListGrantableRolesResponse {
