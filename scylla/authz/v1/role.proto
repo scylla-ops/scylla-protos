@@ -27,7 +27,9 @@ service RoleService {
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
   // Replaces name, description and access. A platform administrator may also
   // edit a builtin role. Scope kind, kind and origin never change; recreate
-  // the role. The escalation rule of CreateRole applies.
+  // the role. The escalation rule of CreateRole applies to the permissions
+  // that the update adds: the caller may keep or remove a permission that it
+  // does not hold.
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
   // A builtin role, or a role still held by a grant or offered in a pending
   // invitation, fails with FAILED_PRECONDITION; revoke those first
