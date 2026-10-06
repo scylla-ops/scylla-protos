@@ -77,8 +77,10 @@ message Role {
 }
 
 message CreateRoleRequest {
-  // Trimmed; 1 to 255 bytes. Unique among the platform roles and the roles of
-  // one organization: an organization role never takes a platform name.
+  // Trimmed; 1 to 255 bytes. Unique, without regard to case, among the
+  // platform roles and among the roles of one organization. An organization
+  // role never takes the name of a platform role; a new platform role may take
+  // the name of an organization role. Otherwise ALREADY_EXISTS.
   string name = 1;
   // Trimmed; at most 1024 bytes.
   string description = 2;
