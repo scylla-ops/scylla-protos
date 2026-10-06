@@ -112,8 +112,8 @@ enum Permission {
   PERMISSION_MANAGE_PROJECT_GRANTS = 56;
   reserved 57;
   reserved "PERMISSION_MANAGE_POLICIES";
-  // Every RoleService RPC except GetMyPermissions and GetEffectivePermissions.
-  // SCOPE_KIND_SYSTEM role only.
+  // The platform roles: every RoleService RPC on a role with no owner, and
+  // ListRoles of every role. SCOPE_KIND_SYSTEM role only.
   PERMISSION_MANAGE_ROLES = 58;
   PERMISSION_CREATE_SECRET = 59;
   PERMISSION_LIST_SECRETS = 60;
@@ -121,6 +121,10 @@ enum Permission {
   // Get, list, enable, disable and delete the triggers of one pipeline.
   // Create and update also need PERMISSION_RUN_PIPELINE on that pipeline.
   PERMISSION_MANAGE_TRIGGERS = 62;
+  // Create, edit and delete the roles one organization owns. The caller puts
+  // in a role only permissions it holds there or at SYSTEM; otherwise
+  // FAILED_PRECONDITION.
+  PERMISSION_MANAGE_ORG_ROLES = 63;
 }
 
 // The tenancy level of a role or a grant, without the entity. Broadest to

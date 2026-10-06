@@ -2,28 +2,40 @@ syntax = "proto3";
 
 package scylla.authz.v1;
 
+import "scylla/authz/v1/grant.proto";
 import "scylla/authz/v1/permission.proto";
 import "scylla/common/v1/common.proto";
 
 // The role catalog. A role is a named set of permissions bound to one scope
 // kind; a grant (GrantService.CreateGrant) gives a principal that role at one
-// scope of that kind. Every RPC except GetMyPermissions checks its permission
-// at system scope. CreateRole, UpdateRole and DeleteRole take effect before
-// they return: the next request of every principal that holds the role uses
-// the new permissions.
+// scope of that kind. A role with no owner is a platform role: the builtins
+// and the custom roles of the system administrators, managed with
+// `manageRoles` at system scope. A role owned by an organization is managed
+// with `manageOrgRoles` on that organization, and only that organization sees
+// and grants it. GetRole, UpdateRole and DeleteRole check the permission of
+// the role's owner; an unknown role, or a role of another organization, fails
+// with PERMISSION_DENIED for a caller without `manageRoles`. CreateRole,
+// UpdateRole and DeleteRole take effect before they return: the next request
+// of every principal that holds the role uses the new permissions.
 service RoleService {
-  // Creates a custom role. Requires `manageRoles`.
+  // Creates a custom role. With `organization_id`, a role of that
+  // organization: requires `manageOrgRoles` there. Without, a platform role:
+  // requires `manageRoles`. The caller puts in the role only permissions it
+  // holds at that organization, or at system scope for a platform role;
+  // otherwise FAILED_PRECONDITION.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
-  // Requires `manageRoles`.
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
-  // Requires `manageRoles`. Replaces name, description and access, also on a
-  // builtin role. Scope kind and origin never change; recreate the role.
+  // Replaces name, description and access. A platform administrator may also
+  // edit a builtin role. Scope kind, kind and origin never change; recreate
+  // the role. The escalation rule of CreateRole applies.
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
-  // Requires `manageRoles`. A builtin role, or a role still held by a grant,
-  // fails with FAILED_PRECONDITION; revoke the grants first
-  // (GrantService.RevokeGrant).
+  // A builtin role, or a role still held by a grant or offered in a pending
+  // invitation, fails with FAILED_PRECONDITION; revoke those first
+  // (GrantService.RevokeGrant, InvitationService.RevokeInvitation).
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
-  // Returns every role, builtin and custom. Requires `manageRoles`.
+  // With `organization_id`: the platform roles and the roles of that
+  // organization; requires `manageOrgRoles` there. Without: every role;
+  // requires `manageRoles`.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   // Requires `manageSystemGrants`. One principal's permissions per granted
   // scope; an unknown principal, or one with no grants, yields an empty list.
@@ -31,7 +43,7 @@ service RoleService {
   // Same shape as GetEffectivePermissions, for the caller itself. Requires no
   // permission. A caller that is neither user nor app gets PERMISSION_DENIED.
   rpc GetMyPermissions(GetMyPermissionsRequest) returns (GetMyPermissionsResponse);
-  // Requires `manageRoles`. Lists each enforced permission with `min_scope`.
+  // Requires no permission. Lists each enforced permission with `min_scope`.
   rpc ListAuthzVocabulary(ListAuthzVocabularyRequest) returns (ListAuthzVocabularyResponse);
 }
 
@@ -53,15 +65,18 @@ message Role {
   message Builtin {
     string key = 1;
   }
-  // Created through CreateRole. `owner_organization_id` is absent when no
-  // organization owns the role; CreateRole sets none.
+  // Created through CreateRole. `owner_organization_id` is absent for a
+  // platform role, and set for a role of that organization.
   message Custom {
     scylla.common.v1.OrganizationId owner_organization_id = 1;
   }
+  // ROLE_KIND_ADMIN for the builtin owner roles only.
+  RoleKind kind = 8;
 }
 
 message CreateRoleRequest {
-  // Trimmed; 1 to 255 bytes; unique across roles.
+  // Trimmed; 1 to 255 bytes. Unique among the platform roles and the roles of
+  // one organization: an organization role never takes a platform name.
   string name = 1;
   // Trimmed; at most 1024 bytes.
   string description = 2;
@@ -70,6 +85,12 @@ message CreateRoleRequest {
   // Required. Restricted permissions must be usable at `scope_kind` (see
   // ListAuthzVocabulary).
   Access access = 4;
+  // Set: a role of this organization, SCOPE_KIND_ORGANIZATION or
+  // SCOPE_KIND_PROJECT only.
+  scylla.common.v1.OrganizationId organization_id = 5;
+  // ROLE_KIND_UNSPECIFIED means ROLE_KIND_MEMBER. ROLE_KIND_ADMIN is rejected
+  // with INVALID_ARGUMENT. A ROLE_KIND_AGENT role goes to apps only.
+  RoleKind kind = 6;
 }
 
 message CreateRoleResponse {
@@ -86,7 +107,7 @@ message GetRoleResponse {
 
 message UpdateRoleRequest {
   scylla.common.v1.RoleId role_id = 1;
-  // Trimmed; 1 to 255 bytes; unique across roles.
+  // Trimmed; 1 to 255 bytes; the uniqueness rule of CreateRoleRequest.name.
   string name = 2;
   // Trimmed; at most 1024 bytes.
   string description = 3;
@@ -105,7 +126,9 @@ message DeleteRoleRequest {
 
 message DeleteRoleResponse {}
 
-message ListRolesRequest {}
+message ListRolesRequest {
+  scylla.common.v1.OrganizationId organization_id = 1;
+}
 
 message ListRolesResponse {
   repeated Role roles = 1;
