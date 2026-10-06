@@ -15,7 +15,8 @@ service RegistrationService {
 }
 
 message SignupRequest {
-  // Trimmed; 1 to 255 bytes; unique across the server.
+  // Trimmed; 1 to 255 bytes; no '@' (Login reads an identifier with '@' as an
+  // email); unique across the server.
   string username = 1;
   // Plain text; 8 to 255 characters; not whitespace only. The server stores
   // only a hash.

@@ -18,14 +18,21 @@ service ProjectService {
   // Requires `readProject` on the project.
   rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
   // Requires `updateProject` on the project. A set field replaces the stored
-  // value and bumps `updated_at`; an unset field keeps its value.
+  // value and bumps `updated_at`; an unset field keeps its value. Fails with
+  // ABORTED and changes nothing when the project changed since the server
+  // read it; read it again and retry.
   rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
   // Requires `updateProject` on the project. Stores `is_active` as given.
   // Repeating the current value changes nothing, not even `updated_at`.
+  // Fails with ABORTED and changes nothing when the project changed since the
+  // server read it; read it again and retry.
   rpc SetProjectActive(SetProjectActiveRequest) returns (SetProjectActiveResponse);
   // Requires `deleteProject` on the project. Cascades to its pipelines, their
   // triggers and jobs, and its secrets. Revokes every grant scoped to the
-  // project; the revocation is effective when the call returns.
+  // project; the revocation is effective when the call returns. The agents
+  // that hold its pending or running jobs get a CancelJob frame after the
+  // delete. Fails with ABORTED and changes nothing when the project changed
+  // since the server read it; read it again and retry.
   rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
   // Requires `listProjects` at system scope. Every project of every
   // organization, inactive ones included, newest first.
@@ -37,8 +44,9 @@ service ProjectService {
   // first.
   rpc ListOrganizationProjects(ListOrganizationProjectsRequest) returns (ListOrganizationProjectsResponse);
   // Requires `listUserProjects` on the user; a user always holds it for
-  // itself. Lists the projects where the user holds a grant scoped to the
-  // project or to its organization, newest first.
+  // itself. Lists the projects where the user holds `readProject` through a
+  // grant scoped to the project or to its organization, newest first. A
+  // system-scoped grant adds no project.
   rpc ListUserProjects(ListUserProjectsRequest) returns (ListUserProjectsResponse);
   // Requires `listProjectMembers` on the project. Lists the users that hold a
   // grant scoped to this project, most recently granted first. Omits users

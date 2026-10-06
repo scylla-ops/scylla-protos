@@ -14,10 +14,16 @@ service PipelineService {
   // Requires `readPipeline` on the pipeline.
   rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse);
   // Requires `updatePipeline` on the pipeline. Changes only what the request
-  // carries. A failed validation leaves the pipeline as it was.
+  // carries. A failed validation leaves the pipeline as it was. A job created
+  // before the update runs the nodes it was created with. Fails with ABORTED
+  // and changes nothing when the pipeline changed since the server read it;
+  // read it again and retry.
   rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse);
   // Requires `deletePipeline` on the pipeline. Deletes the pipeline together
-  // with its jobs, their logs and its triggers.
+  // with its jobs, their logs and its triggers. The agents that hold its
+  // pending or running jobs get a CancelJob frame after the delete. Fails
+  // with ABORTED and changes nothing when the pipeline changed since the
+  // server read it; read it again and retry.
   rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
   // Requires `listPipelines`, a system-scope permission. Returns every
   // pipeline of every organization, newest first.
@@ -26,20 +32,23 @@ service PipelineService {
   rpc ListProjectPipelines(ListProjectPipelinesRequest) returns (ListProjectPipelinesResponse);
   // Requires `listPipelinesByOrganization` on the organization. Newest first.
   rpc ListOrganizationPipelines(ListOrganizationPipelinesRequest) returns (ListOrganizationPipelinesResponse);
-  // Requires `runPipeline` on the pipeline. Creates one pending job, then
-  // resolves every secret_ref. A name that matches no project secret fails
-  // with NOT_FOUND; the job still exists, pending, and the caller does not get
-  // its id. A connected agent that holds `executeJob` on the pipeline receives
-  // the job before the server responds; otherwise the job stays pending until
-  // one connects.
+  // Requires `runPipeline` on the pipeline. Resolves every secret_ref and
+  // measures the resolved job before it stores anything: a name that matches
+  // no project secret fails with NOT_FOUND, and a resolved job larger than
+  // 8 MiB fails with INVALID_ARGUMENT. Neither stores a job. Otherwise it
+  // stores one pending job, which runs the nodes of the pipeline as they are
+  // now. The operating system of the agent also limits the env and the
+  // arguments of one process (about 1 MiB on macOS); a node that passes
+  // that limit fails when it starts. A connected agent that holds `executeJob` on the pipeline and has no
+  // job that has not ended receives the job right after the response;
+  // otherwise the job stays pending until such an agent is free.
   rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse);
 }
 
-// One node of the DAG. The agent runs the DAG in waves: a wave holds every
-// node whose deps have all completed, and its nodes run concurrently. The
-// next wave starts when the whole wave has finished, so a node can wait on
-// nodes it does not depend on. When a node fails, the agent cancels the
-// running nodes, skips the nodes that did not start, and fails the job.
+// One node of the DAG. The agent starts a node when each of its deps has
+// completed, so independent nodes run concurrently. When a node fails, the
+// agent stops the running nodes, skips the nodes that did not start, and
+// fails the job.
 message PipelineNode {
   scylla.common.v1.NodeId node_id = 1;
   // Ids of other nodes of the same pipeline; no self, no duplicate, no id
@@ -47,8 +56,10 @@ message PipelineNode {
   // dependency cycle fails with FAILED_PRECONDITION.
   repeated scylla.common.v1.NodeId deps = 2;
   // Relative to the job workspace; the agent creates it when missing.
-  // Trimmed; "" means the root; no leading "/" or "\", no ".." segment.
+  // Trimmed; "" means the root; no leading "/" or "\", no ".." segment; at
+  // most 4096 bytes.
   string working_dir = 3;
+  // At most 128 entries; keys unique within the node.
   repeated EnvVar env = 4;
 
   // Required.
@@ -61,16 +72,18 @@ message PipelineNode {
 // One environment variable of a node's step process.
 message EnvVar {
   // Trimmed; starts with an ASCII letter or "_"; ASCII letters, digits and
-  // "_" only. The prefix "SCYLLA_" is reserved for the agent.
+  // "_" only; at most 255 bytes. The prefix "SCYLLA_" is reserved for the
+  // agent.
   string key = 1;
   // Required.
   oneof source {
-    // Used as-is.
+    // Used as-is; at most 65536 bytes.
     string value = 2;
     // Name of a secret of the pipeline's project, not its id. Trimmed; 1 to
-    // 128 characters of ASCII letters, digits, "-", "_" and ".". Create and
+    // 128 bytes of ASCII letters, digits, "-", "_" and ".". Create and
     // Update check the format only; RunPipeline resolves it. Job logs show
-    // "***" in place of the resolved value.
+    // "***" in place of each line of the resolved value that has at least 4
+    // characters; a shorter line shows as-is.
     string secret_ref = 3;
   }
 }
@@ -103,7 +116,7 @@ message CreatePipelineRequest {
   scylla.common.v1.ProjectId project_id = 1;
   // Trimmed; 1 to 255 bytes.
   string name = 2;
-  // At least one node; node ids unique within the list.
+  // 1 to 256 nodes; node ids unique within the list.
   repeated PipelineNode nodes = 3;
 }
 

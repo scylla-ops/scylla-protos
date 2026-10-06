@@ -61,7 +61,9 @@ message Role {
 }
 
 message CreateRoleRequest {
+  // Trimmed; 1 to 255 bytes; unique across roles.
   string name = 1;
+  // Trimmed; at most 1024 bytes.
   string description = 2;
   // Required.
   ScopeKind scope_kind = 3;
@@ -84,7 +86,9 @@ message GetRoleResponse {
 
 message UpdateRoleRequest {
   scylla.common.v1.RoleId role_id = 1;
+  // Trimmed; 1 to 255 bytes; unique across roles.
   string name = 2;
+  // Trimmed; at most 1024 bytes.
   string description = 3;
   // Required. UpdateRole validates it against the role's `scope_kind`, as
   // in CreateRole.

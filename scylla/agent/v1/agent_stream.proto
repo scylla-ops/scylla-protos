@@ -9,18 +9,28 @@ import "scylla/exec/v1/step.proto";
 // Long-lived bidirectional stream between the control plane and one agent.
 // Open accepts only an app token, checked once when the stream opens; a user
 // session token fails with PERMISSION_DENIED. No permission key is required.
+// A frame is at most 16 MiB in each direction.
 //
-// The open stream is the agent's presence; there is no heartbeat. The control
-// plane pushes JobDispatch frames; the agent answers with JobStatus and
-// JobLogLine frames. The control plane offers a job only to a connected agent
-// that holds `executeJob` on the job's pipeline. Among eligible agents it picks
-// the one with the fewest jobs in flight. A second Open with the same app
-// replaces the first: the older stream stops receiving and ends. Every 30
-// seconds the control plane marks `orphaned` each running job whose agent is
-// not connected at that moment. An agent that reconnects before that check
-// keeps its running jobs. `last_seen` in AgentAdminService.GetAgent advances
-// when the stream opens, on every JobStatus and AgentHello frame, and when the
-// stream closes.
+// The open stream is the agent's presence; there is no heartbeat frame. The
+// control plane pings the connection every 20 seconds and closes it when a
+// ping gets no answer in 10 seconds. The control plane sends JobDispatch and
+// CancelJob frames; the agent answers with JobStatus and JobLogLine frames.
+// The control plane keeps at most 64 frames for a stream. When the stream
+// does not take a frame, the control plane closes the stream.
+//
+// An agent runs one job at a time. The control plane places the oldest
+// pending job on the open stream of a connected agent that holds `executeJob`
+// on the job's pipeline and has no job that has not ended. When that stream
+// closes, the job goes back to the pending pool if it did not start. A job
+// placed on a stream that the control plane lost, for example in a restart,
+// goes back to the pool within 30 seconds. A second Open with the same app
+// replaces the first: the older stream ends with ALREADY_EXISTS. A running
+// job whose agent stays disconnected for 60 seconds after its last contact
+// becomes `orphaned`. `last_seen` in AgentAdminService.GetAgent advances when
+// the stream opens, on every JobStatus and AgentHello frame, and when the
+// stream closes. On shutdown the reference agent stops its running jobs,
+// reports `job_failed` for each, and then closes the stream. It sends no node
+// event for a node that it stopped or did not start (see JobStatus).
 service AgentService {
   rpc Open(stream AgentUp) returns (stream AgentDown);
 }
@@ -31,13 +41,15 @@ service AgentService {
 message AgentDown {
   oneof payload {
     JobDispatch dispatch = 1;
+    CancelJob cancel = 2;
   }
 }
 
 // One frame from the agent to the control plane. A frame with no `payload` is
 // ignored. The control plane never answers a frame with an error. A status or
 // log the caller may not write, or that breaks a rule, is logged server-side
-// and dropped. The stream stays open.
+// and dropped. The stream stays open. A frame that the control plane cannot
+// decode closes the stream.
 message AgentUp {
   oneof payload {
     JobStatus status = 1;
@@ -46,11 +58,12 @@ message AgentUp {
   }
 }
 
-// The machine the agent runs on. Optional: an agent that never sends it stays
-// connected and receives jobs. The reference agent sends it once, right after
-// the stream opens. The control plane accepts it at any time, stores the
-// latest one as the agent's `host` (see AgentAdminService.GetAgent) and does
-// not use it for scheduling.
+// The machine the agent runs on, and the jobs it runs. Optional: an agent
+// that never sends it stays connected and receives jobs. The reference agent
+// sends one each time a stream opens, after the frames that it could not send
+// on the earlier stream. The control plane accepts it at any time, stores the
+// latest host as the agent's `host` (see AgentAdminService.GetAgent) and does
+// not use the host for scheduling.
 message AgentHello {
   string version = 1;
   string os = 2;
@@ -60,16 +73,31 @@ message AgentHello {
   int32 cpu_count = 5;
   // In MiB. `0` means unknown and is stored as unset.
   int64 total_memory_mb = 6;
+  // The jobs that this agent process runs. The control plane marks `orphaned`
+  // each running job of this agent that the list does not contain, and sends
+  // CancelJob for each listed job that it does not record as a running job of
+  // this agent.
+  repeated scylla.common.v1.JobId running_jobs = 7;
 }
 
 // A job ready to run: every secret reference is resolved and every trigger
-// input is in the node env. The control plane attributes the job to this
-// agent and offers it to no other. Answer with JobStatus frames, first
-// `job_started`, last `job_completed` or `job_failed`.
+// input is in the node env. The control plane placed the job on this agent
+// and offers it to no other. Answer with JobStatus frames, first
+// `job_started`, last `job_completed` or `job_failed`. A dispatch for a job
+// that the agent runs already is ignored.
 message JobDispatch {
   scylla.common.v1.JobId job_id = 1;
   scylla.common.v1.PipelineId pipeline_id = 2;
   repeated AgentNode nodes = 3;
+}
+
+// Stop the job: stop its processes and remove its workspace. The control
+// plane recorded the end of the job, deleted it, or placed it on another
+// agent, so it ignores the frames that the agent still sends about the job.
+// The reference agent sends no more frames about the job. A cancel for a job
+// that the agent does not run has no effect.
+message CancelJob {
+  scylla.common.v1.JobId job_id = 1;
 }
 
 // One pipeline node with its env resolved. `deps` lists the node ids this node
@@ -92,25 +120,34 @@ message AgentNode {
 
 // One environment variable with its final value. `masked` is true when the
 // value came from a project secret, not for a literal or a trigger input. The
-// agent must scrub a masked value from the log lines it sends; the reference
-// agent replaces it with `***`.
+// agent must scrub a masked value from the log lines it sends. The reference
+// agent splits the value into lines, trims each line, and replaces every line
+// of at least 4 characters with `***` in the output, longest first. A shorter
+// line is not masked.
 message ResolvedEnv {
   string key = 1;
   string value = 2;
   bool masked = 3;
 }
 
-// One job lifecycle event. Requires `writeJobStatus` on the job. A status with
-// no `event` is ignored. `job_started` needs a pending job. `job_completed` and
-// `job_failed` need a running job. `node_started` needs a pending node.
-// `node_completed` and `node_failed` need a running node. `node_skipped` needs
-// a node that has not finished. A node id must belong to the job. An event that
-// breaks a rule does not change the job. Whether or not the job changed,
-// `job_started` opens the live tail for JobService.TailJobLogs, and
-// `job_completed` and `job_failed` close it and decrement the agent's in-flight
-// count. The control plane does not store `error` in JobFailed or NodeFailed.
+// One job lifecycle event. Requires `writeJobStatus` on the job. Only the
+// agent that the job is placed on may report it, and only until the job ends.
+// A status with no `event` is ignored. `job_started` needs a pending job.
+// `job_completed` needs a running job, and `job_failed` needs a pending or a
+// running job. A node event needs a running job: `node_started` needs a
+// pending node, `node_completed` and `node_failed` need a running node, and
+// `node_skipped` needs a node that has not finished. A node id must belong to
+// the job. When the job ends, each node that has not finished becomes
+// cancelled. An event that breaks a rule does not change the job.
+// `job_started` opens the live tail for JobService.TailJobLogs, and the end
+// of the job closes it. The control plane does not store `error` in JobFailed
+// or NodeFailed.
 message JobStatus {
   scylla.common.v1.JobId job_id = 1;
+  // When the event happened on the agent. Unset means the receive time. The
+  // control plane keeps the time between the creation of the job and the
+  // receive time.
+  google.protobuf.Timestamp timestamp = 2;
 
   oneof event {
     JobStarted job_started = 10;
@@ -134,8 +171,8 @@ message JobStatus {
   message NodeCompleted {
     scylla.common.v1.NodeId node_id = 1;
   }
-  // The node did not run, usually because a dependency failed or the job
-  // stopped before reaching it.
+  // The node did not run, or the agent stopped it while it ran, because
+  // another node failed.
   message NodeSkipped {
     scylla.common.v1.NodeId node_id = 1;
   }
@@ -145,10 +182,20 @@ message JobStatus {
   }
 }
 
-// One line of output from a running node. Requires `appendJobLog` on the job.
-// A line with an invalid `node_id` is dropped. An unset `timestamp` becomes
-// the receive time. An accepted line is stored (JobService.ListJobLogs) and
-// pushed to live JobService.TailJobLogs subscribers.
+// One line of output from a running node. Requires `appendJobLog` on the job,
+// and the job must be placed on the agent that sends the line and must not
+// have ended. A line with an invalid `node_id` is dropped. An unset
+// `timestamp` becomes the receive time. The control plane stores the
+// consecutive lines of one job in one batch (JobService.ListJobLogs), then
+// pushes them to live JobService.TailJobLogs subscribers.
+//
+// `line` is one line of output without its LF or CRLF terminator. The
+// reference agent decodes output as UTF-8 and replaces invalid bytes with
+// U+FFFD. It splits a line longer than 64 KiB into several lines. It stamps
+// the lines of one node with strictly increasing times, so the lines of one
+// stream keep their order. Lines written to stdout and stderr at nearly the
+// same moment can still be stored out of order. The control plane stores each
+// NUL character of `line` as U+FFFD.
 message JobLogLine {
   scylla.common.v1.JobId job_id = 1;
   scylla.common.v1.NodeId node_id = 2;

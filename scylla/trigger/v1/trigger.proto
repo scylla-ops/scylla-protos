@@ -9,10 +9,15 @@ import "scylla/common/v1/common.proto";
 // call. A cron trigger fires on a UTC schedule; a webhook trigger fires when
 // an external system POSTs a signed body to its URL. A pipeline may hold
 // several triggers. A fire mints one Job through the same path as a manual
-// run. The run executes as an App named "trigger-runner" in the pipeline's
-// organization; that App holds the organization-trigger-runner role, which
-// grants runPipeline only. The first CreateTrigger in an organization
-// provisions it.
+// run. The run executes as the trigger-runner App of the pipeline's
+// organization: the server marks that App as the runner and names it
+// "trigger-runner". It holds the organization-trigger-runner role, which
+// grants runPipeline only, and it has no secret. The first CreateTrigger in an
+// organization provisions it. AppService.CreateApp and
+// AgentAdminService.CreateAgent refuse the name "trigger-runner", and
+// AppService.DeleteApp, SetAppActive and CreateAppSecret refuse this App with
+// FAILED_PRECONDITION. If an App that is not the runner already holds the
+// name, CreateTrigger fails with ALREADY_EXISTS until that App is deleted.
 //
 // An RPC that takes a `trigger_id` checks the permission on the trigger; a
 // grant on the trigger's project reaches it. An unknown trigger_id has no
@@ -28,9 +33,13 @@ service TriggerService {
   // Replaces name, source spec and inputs, not the enabled state. The source
   // kind cannot change: the other kind fails with FAILED_PRECONDITION; delete
   // and recreate instead. A cron source's next occurrence is recomputed from
-  // now; a webhook's signing secret is kept.
+  // now; a webhook's signing secret is kept. Fails with ABORTED and changes
+  // nothing when the trigger changed since the server read it; read it again
+  // and retry.
   rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse);
-  // Requires `manageTriggers` on the trigger.
+  // Requires `manageTriggers` on the trigger. Fails with ABORTED and changes
+  // nothing when the trigger changed since the server read it; read it again
+  // and retry.
   rpc DeleteTrigger(DeleteTriggerRequest) returns (DeleteTriggerResponse);
   // Requires `manageTriggers` on `pipeline_id`. Every trigger, oldest first,
   // no pagination.
@@ -38,7 +47,9 @@ service TriggerService {
   // Requires `manageTriggers` on the trigger. A disabled trigger
   // never fires and its webhook URL answers 404, as for an unknown id.
   // Re-enabling a cron trigger schedules the next occurrence from now;
-  // occurrences missed while disabled do not fire.
+  // occurrences missed while disabled do not fire. Fails with ABORTED and
+  // changes nothing when the trigger changed since the server read it; read
+  // it again and retry.
   rpc SetTriggerEnabled(SetTriggerEnabledRequest) returns (SetTriggerEnabledResponse);
   // Requires `runPipeline` on the trigger. Mints and dispatches a
   // Job like a real fire and records a FireObservation, ignoring the cron
@@ -63,16 +74,22 @@ message CronSpec {
 
 // The sender computes HMAC-SHA256 over the raw request body with the signing
 // secret (see CreateTriggerResponse.webhook_secret). It sends the hex digest,
-// with or without a "sha256=" prefix, in the signature header. A missing or
-// wrong signature answers 401. A delivery id in the X-Scylla-Delivery or
-// X-GitHub-Delivery header deduplicates: a repeated id answers 200 and does
-// not fire again. Without one, the signature value is the dedupe key. An
-// accepted delivery answers 202; a JSON body feeds the json_pointer inputs.
+// with or without a "sha256=" prefix, in the signature header. The prefix and
+// the hex digits are accepted in any case. A missing or wrong signature
+// answers 401. A delivery id in the X-Scylla-Delivery or X-GitHub-Delivery
+// header deduplicates: a repeated id answers 200 and does not fire again.
+// Without one, the digest is the dedupe key, so the prefixed and the bare
+// form of one signature are one delivery. An accepted delivery answers 202; a
+// JSON body feeds the json_pointer inputs. A delivery whose fire fails is not
+// recorded, so a retry with the same delivery id fires: a payload value that
+// a run cannot use answers 422, any other failure answers 500.
 // A signed delivery whose X-Scylla-Event or X-GitHub-Event header is "ping"
 // answers 200 and does not fire: GitHub sends one when the webhook is
 // created, and a sender can use it to check the URL and the secret.
 message WebhookSpec {
   // Empty selects "X-Scylla-Signature-256"; GitHub uses "X-Hub-Signature-256".
+  // Otherwise an HTTP header name: ASCII letters, digits and
+  // !#$%&'*+-.^_`|~; at most 255 bytes.
   string signature_header = 1;
 }
 
@@ -81,14 +98,15 @@ message WebhookSpec {
 // secret.
 message TriggerInput {
   // Unique within the trigger. ASCII letters, digits and underscores, not
-  // starting with a digit or with "SCYLLA_".
+  // starting with a digit or with "SCYLLA_"; at most 255 bytes.
   string key = 1;
   // Required.
   oneof source {
-    // Allowed on cron and webhook triggers.
+    // Allowed on cron and webhook triggers. At most 65536 bytes.
     string literal = 2;
     // RFC 6901 pointer into the webhook payload, for example "/after"; must
-    // start with "/". Webhook triggers only. Skipped when it does not resolve
+    // start with "/", and every "~" is followed by "0" or "1"; at most 1024
+    // bytes. Webhook triggers only. Skipped when it does not resolve
     // or the fire has no payload. A non-string value arrives as JSON text.
     string json_pointer = 3;
   }
@@ -105,6 +123,8 @@ message Trigger {
   // FireTriggerNow.
   FireObservation last_observation = 5;
   google.protobuf.Timestamp created_at = 6;
+  // Changes on CreateTrigger, UpdateTrigger and SetTriggerEnabled. A fire and
+  // a cron schedule advance do not change it (see last_observation).
   google.protobuf.Timestamp updated_at = 7;
 
   oneof source {
@@ -158,8 +178,10 @@ message FireObservation {
 
 message CreateTriggerRequest {
   scylla.common.v1.PipelineId pipeline_id = 1;
-  // Trimmed; 1 to 255 bytes of UTF-8.
+  // Trimmed; 1 to 255 bytes of UTF-8. Unique within the pipeline: a name
+  // that is taken fails with ALREADY_EXISTS.
   string name = 2;
+  // At most 128.
   repeated TriggerInput inputs = 3;
 
   // Required.
@@ -187,8 +209,10 @@ message GetTriggerResponse {
 message UpdateTriggerRequest {
   scylla.common.v1.TriggerId trigger_id = 1;
   // Required despite the `optional` label. Trimmed; 1 to 255 bytes of UTF-8.
+  // Unique within the pipeline: a name that is taken fails with
+  // ALREADY_EXISTS.
   optional string name = 2;
-  // Replaces the whole list; an empty list removes every input.
+  // Replaces the whole list; an empty list removes every input. At most 128.
   repeated TriggerInput inputs = 3;
 
   // Required.

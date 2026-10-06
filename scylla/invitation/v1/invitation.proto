@@ -6,13 +6,19 @@ import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/common.proto";
 
 // Management of organization invitations. No RPC returns the invite token;
-// it reaches the invitee by email only.
+// it reaches the invitee by email only. The server stores only its SHA-256
+// digest.
 service InvitationService {
   // Requires `manageInvitations` on `organization_id`. Creates a PENDING
   // invitation for `email` and sends the invite token to that address. Each
   // call creates a new invitation; an earlier pending one for the same email
   // stays valid. A mail delivery failure does not fail the call: the server
-  // stores the invitation anyway.
+  // stores the invitation anyway. The role follows GrantService.CreateGrant
+  // for a user at organization scope: INVALID_ARGUMENT for an unknown role, a
+  // role of another scope kind or an agent role; FAILED_PRECONDITION when it
+  // confers a permission the caller does not hold on the organization or at
+  // system scope. An invitation without a role is checked as
+  // organization-member.
   rpc CreateInvitation(CreateInvitationRequest) returns (CreateInvitationResponse);
   // Requires `manageInvitations` on `organization_id`. Returns the PENDING
   // invitations, newest first. Expired ones stay listed while PENDING;
@@ -21,8 +27,10 @@ service InvitationService {
   // Requires `manageInvitations` on the invitation; a grant on the
   // invitation's organization reaches it. An unknown `invitation_id` has no
   // organization: it fails with PERMISSION_DENIED, and with NOT_FOUND only for
-  // a System grant. Sets the status to REVOKED. Revoking an ACCEPTED
-  // invitation succeeds but keeps the membership that acceptance granted.
+  // a System grant. Sets the status to REVOKED. An invitation that is not
+  // PENDING returns FAILED_PRECONDITION. Fails with ABORTED and changes
+  // nothing when the invitation stopped being PENDING since the server read
+  // it.
   rpc RevokeInvitation(RevokeInvitationRequest) returns (RevokeInvitationResponse);
 }
 
@@ -35,6 +43,8 @@ service InvitationAcceptService {
   // neither. Otherwise the call creates the account from them. The invitation
   // becomes ACCEPTED and the invitee at once holds its role on the
   // organization, or `organization-member` when the invitation has none.
+  // Fails with ABORTED and changes nothing when the invitation stopped being
+  // PENDING since the server read it.
   rpc AcceptInvitation(AcceptInvitationRequest) returns (AcceptInvitationResponse);
 }
 
@@ -90,8 +100,8 @@ message RevokeInvitationResponse {}
 message AcceptInvitationRequest {
   // The invite token from the email. Single use.
   string token = 1;
-  // Trimmed; 1 to 255 bytes; unique among users when the call creates the
-  // account.
+  // Trimmed; 1 to 255 bytes; no '@' (Login reads an identifier with '@' as an
+  // email); unique among users when the call creates the account.
   string username = 2;
   // Plaintext; 8 to 255 characters; not whitespace only. The server stores
   // only a hash.
