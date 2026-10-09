@@ -4,12 +4,15 @@ package scylla.auth.v1;
 
 import "scylla/common/v1/common.proto";
 
-// Session tokens for human user accounts. No RPC in this service reads the
-// `authorization` header. ValidateToken and RevokeToken take the token in
-// the request message, not in metadata.
+// Session tokens and password resets for human user accounts. No RPC in this
+// service reads the `authorization` header. ValidateToken and RevokeToken take
+// the token in the request message, not in metadata.
 service AuthService {
-  // Checks the credentials and opens a session. A wrong password, unknown or
-  // inactive account or malformed identifier fails with UNAUTHENTICATED.
+  // Checks the credentials and opens a session. An unknown account, a wrong
+  // password or a malformed identifier fails with UNAUTHENTICATED and the
+  // message "Invalid credentials". The server checks the password before the
+  // is_active flag: an inactive account with the right password fails with
+  // UNAUTHENTICATED and the message "User account is inactive".
   rpc Login(LoginRequest) returns (LoginResponse);
   // Reports whether a token from Login identifies a live session. A bad token
   // gives the Invalid arm, not a gRPC error; app tokens are always Invalid.
@@ -18,6 +21,33 @@ service AuthService {
   // An unknown, revoked or app token returns OK without effect. Rejects an
   // empty token.
   rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse);
+  // Starts a password reset for the active account that uses this email.
+  // Returns OK in the same way when no active account uses the email, so the
+  // response does not tell whether the account exists. For an active account,
+  // the server makes a reset link, cancels the earlier links of the account
+  // and delivers the new link after the response: by mail when the server has
+  // a mailer, else in the server log. A link is single-use and expires one
+  // hour after it is made. A second request for the same account within 60
+  // seconds delivers nothing. The link opens `/reset-password` of the web UI
+  // and carries the token in the URL fragment.
+  rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
+  // Sets a new password with the token of a reset link. Fails with
+  // FAILED_PRECONDITION when the token is unknown, used or expired, or when
+  // the account is inactive; the message does not tell which. On success the
+  // token becomes used, the other links of the account are cancelled and
+  // every session of the account is revoked. Does not open a session: call
+  // Login with the new password.
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+}
+
+// How a server delivers its reset links. It depends on the server
+// configuration only, never on the account.
+enum PasswordResetDelivery {
+  PASSWORD_RESET_DELIVERY_UNSPECIFIED = 0;
+  // A mail goes to the email of the account.
+  PASSWORD_RESET_DELIVERY_MAIL = 1;
+  // The server writes the link in its log. An operator gives it to the user.
+  PASSWORD_RESET_DELIVERY_SERVER_LOG = 2;
 }
 
 message LoginRequest {
@@ -58,3 +88,20 @@ message RevokeTokenRequest {
 }
 
 message RevokeTokenResponse {}
+
+message RequestPasswordResetRequest {
+  scylla.common.v1.Email email = 1;
+}
+
+message RequestPasswordResetResponse {
+  PasswordResetDelivery delivery = 1;
+}
+
+message ResetPasswordRequest {
+  // The token that the reset link carries.
+  string token = 1;
+  // 8 to 255 characters, not whitespace only.
+  string new_password = 2;
+}
+
+message ResetPasswordResponse {}

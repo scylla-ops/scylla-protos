@@ -3,45 +3,89 @@ syntax = "proto3";
 package scylla.user.v1;
 
 import "google/protobuf/timestamp.proto";
+import "scylla/auth/v1/auth.proto";
+import "scylla/authz/v1/permission.proto";
 import "scylla/common/v1/common.proto";
 
 // User accounts. A user reads and updates its own account without a grant.
 // This service does not assign roles: bind one with
-// scylla.authz.v1.GrantService.CreateGrant. No RPC in this service changes a
-// password, an email or the is_active flag.
+// scylla.authz.v1.GrantService.CreateGrant. An app token calls none of the
+// RPCs that act on the caller's own account (GetMe, ChangePassword,
+// DeleteAccount): they fail with PERMISSION_DENIED.
 service UserService {
   // Requires `createUser` at system scope. The new account is active and
   // holds no grant.
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   // Requires `readUser` on user_id, or user_id equal to the caller's own id.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // The account of the caller. Needs no permission.
+  rpc GetMe(GetMeRequest) returns (GetMeResponse);
   // Requires `updateUser` on user_id, or user_id equal to the caller's own
-  // id. Only the username can change. Fails with ABORTED and changes nothing
-  // when the user changed since the server read it; read it again and retry.
+  // id. Setting `email` also requires `createUser` at system scope, also for
+  // the caller's own id. Fails with ABORTED and changes nothing when the user
+  // changed since the server read it; read it again and retry.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // Requires `deleteUser` on user_id; the caller's own id gets no exemption.
-  // Also deletes the user's sessions and removes every grant the user holds. Authorization reflects the
-  // removal at once. Fails with ABORTED and changes nothing when the user
-  // changed since the server read it; read it again and retry.
-  // FAILED_PRECONDITION when the user is the last user holding system-admin,
-  // or organization-admin on an organization: appoint another first.
+  // Also deletes the user's sessions and reset links, and removes every grant
+  // the user holds. Authorization reflects the removal at once. Fails with
+  // ABORTED and changes nothing when the user changed since the server read
+  // it; read it again and retry. FAILED_PRECONDITION when the user is the
+  // last user holding system-admin, or organization-admin on an
+  // organization: appoint another first.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Requires `listUsers` at system scope. Every account, newest first.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // Changes the password of the caller. A wrong `current_password` fails
+  // with FAILED_PRECONDITION, not UNAUTHENTICATED. On success the server
+  // revokes every other session of the caller and cancels its reset links;
+  // the session of this call stays open.
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  // Requires `updateUser` on user_id, or user_id equal to the caller's own
+  // id. Makes and delivers a reset link as
+  // scylla.auth.v1.AuthService.RequestPasswordReset does, without its
+  // 60-second limit. FAILED_PRECONDITION when the account is inactive or has
+  // no email.
+  rpc SendPasswordReset(SendPasswordResetRequest) returns (SendPasswordResetResponse);
+  // Requires `updateUser` on user_id, or user_id equal to the caller's own
+  // id. Revokes the sessions of the user. For the caller's own id, the
+  // session of this call stays open.
+  rpc RevokeUserSessions(RevokeUserSessionsRequest) returns (RevokeUserSessionsResponse);
+  // Requires `updateUser` on user_id; the caller's own id gets no exemption.
+  // FAILED_PRECONDITION when user_id is the caller's own id, or when the
+  // change would leave no active user holding system-admin. Deactivation
+  // revokes every session of the user and cancels its reset links; Login
+  // then fails for the user. Setting the current value changes nothing.
+  rpc SetUserActive(SetUserActiveRequest) returns (SetUserActiveResponse);
+  // Deletes the account of the caller, with the effects of DeleteUser. A
+  // wrong `password` fails with FAILED_PRECONDITION. FAILED_PRECONDITION
+  // when the caller is the last user holding system-admin, or
+  // organization-admin on an organization; the message names those
+  // organizations.
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+  // Requires `readUser` on user_id, or user_id equal to the caller's own id.
+  // Every grant that the user holds, with the names to show it: the system
+  // grants first, then by organization name, then by project name. Not
+  // paginated.
+  rpc ListUserAccess(ListUserAccessRequest) returns (ListUserAccessResponse);
 }
 
 // A user account. No response carries the password hash.
 message User {
   scylla.common.v1.UserId user_id = 1;
+  // A handle. Trimmed; 1 to 255 bytes; no '@'; unique across accounts.
   string username = 2;
-  // Absent only when CreateUser omitted it.
+  // Absent only on an account that CreateUser made without an email before
+  // the email became required.
   optional scylla.common.v1.Email email = 3;
-  // False blocks AuthService.Login with UNAUTHENTICATED. New accounts are
-  // active; no RPC changes the flag.
+  // False blocks AuthService.Login. New accounts are active; SetUserActive
+  // changes the flag.
   bool is_active = 4;
   google.protobuf.Timestamp created_at = 5;
-  // Equal to created_at until an UpdateUser call that carries a username.
+  // Equal to created_at until the first change of the account.
   google.protobuf.Timestamp updated_at = 6;
+  // The name that people read. Absent when the user has none. Trimmed; 1 to
+  // 100 characters; no control character; not unique.
+  optional string display_name = 7;
 }
 
 message CreateUserRequest {
@@ -51,8 +95,11 @@ message CreateUserRequest {
   // Plaintext; 8 to 255 characters; not whitespace only. The server stores
   // it as a hash and never returns it.
   string password = 2;
-  // Unique across accounts when set.
+  // Required: a request without it fails with INVALID_ARGUMENT. Unique across
+  // accounts.
   optional scylla.common.v1.Email email = 3;
+  // Absent or empty: no display name. Same rules as User.display_name.
+  optional string display_name = 4;
 }
 
 message CreateUserResponse {
@@ -67,11 +114,23 @@ message GetUserResponse {
   User user = 1;
 }
 
+message GetMeRequest {}
+
+message GetMeResponse {
+  User user = 1;
+}
+
 message UpdateUserRequest {
   scylla.common.v1.UserId user_id = 1;
   // Absent: unchanged. Same rules as CreateUserRequest.username; the server
   // accepts the current username.
   optional string username = 2;
+  // Absent: unchanged. Empty: removes the display name. Otherwise the rules
+  // of User.display_name.
+  optional string display_name = 3;
+  // Absent: unchanged. Unique across accounts. Needs `createUser` at system
+  // scope.
+  optional scylla.common.v1.Email email = 4;
 }
 
 message UpdateUserResponse {
@@ -91,4 +150,69 @@ message ListUsersRequest {
 message ListUsersResponse {
   repeated User users = 1;
   scylla.common.v1.PaginationMetadata pagination = 2;
+}
+
+message ChangePasswordRequest {
+  string current_password = 1;
+  // 8 to 255 characters, not whitespace only.
+  string new_password = 2;
+}
+
+message ChangePasswordResponse {}
+
+message SendPasswordResetRequest {
+  scylla.common.v1.UserId user_id = 1;
+}
+
+message SendPasswordResetResponse {
+  scylla.auth.v1.PasswordResetDelivery delivery = 1;
+}
+
+message RevokeUserSessionsRequest {
+  scylla.common.v1.UserId user_id = 1;
+}
+
+message RevokeUserSessionsResponse {
+  // The number of sessions that the call revoked.
+  uint32 revoked = 1;
+}
+
+message SetUserActiveRequest {
+  scylla.common.v1.UserId user_id = 1;
+  bool is_active = 2;
+}
+
+message SetUserActiveResponse {
+  User user = 1;
+}
+
+message DeleteAccountRequest {
+  // The current password of the caller.
+  string password = 1;
+}
+
+message DeleteAccountResponse {}
+
+message ListUserAccessRequest {
+  scylla.common.v1.UserId user_id = 1;
+}
+
+message ListUserAccessResponse {
+  repeated UserAccess access = 1;
+}
+
+// One grant of the user, with the names to show it.
+message UserAccess {
+  scylla.common.v1.GrantId grant_id = 1;
+  scylla.authz.v1.ScopeRef scope = 2;
+  // The organization of an organization or project scope. Absent for the
+  // system scope.
+  optional scylla.common.v1.OrganizationId organization_id = 3;
+  // Empty for the system scope.
+  string organization_name = 4;
+  // Empty unless the scope is a project.
+  string project_name = 5;
+  scylla.common.v1.RoleId role_id = 6;
+  // The display name of the role.
+  string role_name = 7;
 }
