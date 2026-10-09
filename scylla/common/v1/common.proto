@@ -10,15 +10,12 @@ package scylla.common.v1;
 //
 // Authentication. Every RPC reads the `authorization` metadata header and
 // expects the value `Bearer <token>`. The token is a user session token or
-// an app token. scylla.auth.v1.AuthService.Login,
-// scylla.registration.v1.RegistrationService.Signup,
-// scylla.invitation.v1.InvitationAcceptService.AcceptInvitation and
-// scylla.oauth.v1.OauthService.Callback return a session token.
+// an app token. scylla.auth.v1.AuthService.Login returns a session token.
 // scylla.app.v1.AppAuthService.IssueToken returns an app token. A missing,
 // malformed, unknown or expired token fails with UNAUTHENTICATED before the
-// handler runs. The public services skip this check: AuthService,
-// AppAuthService, RegistrationService, InvitationAcceptService and
-// OauthService.
+// handler runs. The public services skip this check: AuthService and
+// AppAuthService. An extension can add other public services and other RPCs
+// that return a session token.
 //
 // Authorization. Each RPC comment names the permission key it requires. The
 // server checks that permission before it looks the resource up. A caller
@@ -54,8 +51,7 @@ package scylla.common.v1;
 message UserId {
   string value = 1;
 }
-// The top-level tenant. Projects, apps and invitations each belong to one
-// organization.
+// The top-level tenant. Projects and apps each belong to one organization.
 message OrganizationId {
   string value = 1;
 }
@@ -91,11 +87,6 @@ message AppId {
 message AppSecretId {
   string value = 1;
 }
-// An invitation to join an organization. Not the acceptance credential:
-// InvitationAcceptService.AcceptInvitation takes the token sent by email.
-message InvitationId {
-  string value = 1;
-}
 // A project secret. Distinct from AppSecretId. A pipeline references a secret
 // by name through `EnvVar.secret_ref`, not by this id.
 message SecretId {
@@ -113,7 +104,7 @@ message GrantId {
 }
 // Not always a ULID. A builtin role's id is its stable key, for example
 // `organization-admin`. A custom role created with RoleService.CreateRole gets
-// a lowercase ULID. Grants and invitations reference a role by this id.
+// a lowercase ULID. Grants reference a role by this id.
 message RoleId {
   string value = 1;
 }

@@ -5,8 +5,8 @@ package scylla.organization.v1;
 import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/common.proto";
 
-// Organizations, the top-level tenant: projects, apps, agents and invitations
-// each belong to one. Membership is a role grant: add a member with
+// Organizations, the top-level tenant: projects, apps and agents each belong
+// to one. Membership is a role grant: add a member with
 // scylla.authz.v1.GrantService.CreateGrant, remove one with RevokeGrant or
 // RevokeAllAccess, and read a member's roles through scylla.authz.v1.
 service OrganizationService {
@@ -28,7 +28,7 @@ service OrganizationService {
   rpc SetOrganizationActive(SetOrganizationActiveRequest) returns (SetOrganizationActiveResponse);
   // Requires `deleteOrganization` on the organization. Cascades to the
   // organization's projects, pipelines, triggers, jobs, job logs, secrets,
-  // apps, agents, invitations and custom roles. Revokes every grant scoped
+  // apps, agents and custom roles. Revokes every grant scoped
   // to the organization or to one of its projects, and every grant held by
   // one of its apps. The revocation is effective when the call returns. The
   // agents that hold its pending or running jobs get a CancelJob frame after

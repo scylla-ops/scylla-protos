@@ -20,8 +20,7 @@ service UserService {
   // when the user changed since the server read it; read it again and retry.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // Requires `deleteUser` on user_id; the caller's own id gets no exemption.
-  // Also deletes the user's sessions, OAuth identities and the invitations it
-  // sent, and removes every grant the user holds. Authorization reflects the
+  // Also deletes the user's sessions and removes every grant the user holds. Authorization reflects the
   // removal at once. Fails with ABORTED and changes nothing when the user
   // changed since the server read it; read it again and retry.
   // FAILED_PRECONDITION when the user is the last user holding system-admin,
@@ -35,8 +34,7 @@ service UserService {
 message User {
   scylla.common.v1.UserId user_id = 1;
   string username = 2;
-  // Absent only when CreateUser omitted it; Signup, invitation acceptance and
-  // OAuth sign-in always set it.
+  // Absent only when CreateUser omitted it.
   optional scylla.common.v1.Email email = 3;
   // False blocks AuthService.Login with UNAUTHENTICATED. New accounts are
   // active; no RPC changes the flag.

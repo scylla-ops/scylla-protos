@@ -38,7 +38,7 @@ service GrantService {
   rpc RevokeAllAccess(RevokeAllAccessRequest) returns (RevokeAllAccessResponse);
   // Not paginated.
   rpc ListGrants(ListGrantsRequest) returns (ListGrantsResponse);
-  // The roles a grant or an invitation may give: the platform roles, and
+  // The roles a grant may give: the platform roles, and
   // with `organization_id` the roles of that organization. Without
   // `organization_id` no permission is checked.
   rpc ListGrantableRoles(ListGrantableRolesRequest) returns (ListGrantableRolesResponse);
@@ -105,8 +105,8 @@ enum RoleKind {
   // Full control of the scope. system-admin and organization-admin are the
   // owner roles; see RevokeGrant.
   ROLE_KIND_ADMIN = 1;
-  // Only an app may hold a role of this kind: CreateGrant and
-  // CreateInvitation reject it for a user with INVALID_ARGUMENT.
+  // Only an app may hold a role of this kind: CreateGrant rejects it for a
+  // user with INVALID_ARGUMENT.
   ROLE_KIND_AGENT = 2;
   // A human working inside the scope without administering it.
   ROLE_KIND_MEMBER = 3;
