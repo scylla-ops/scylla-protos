@@ -51,6 +51,12 @@ package scylla.common.v1;
 message UserId {
   string value = 1;
 }
+// A user session. Opaque and not the session token: it cannot authenticate a
+// call. scylla.user.v1.UserService.ListUserSessions returns it and
+// RevokeUserSession takes it.
+message SessionId {
+  string value = 1;
+}
 // The top-level tenant. Projects and apps each belong to one organization.
 message OrganizationId {
   string value = 1;

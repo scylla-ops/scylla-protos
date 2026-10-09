@@ -67,6 +67,15 @@ service UserService {
   // grants first, then by organization name, then by project name. Not
   // paginated.
   rpc ListUserAccess(ListUserAccessRequest) returns (ListUserAccessResponse);
+  // Requires `readUser` on user_id, or user_id equal to the caller's own id.
+  // The sessions of the user that have not expired, the most recently active
+  // first. Not paginated.
+  rpc ListUserSessions(ListUserSessionsRequest) returns (ListUserSessionsResponse);
+  // Requires `updateUser` on user_id, or user_id equal to the caller's own
+  // id. Revokes one session of the user. NOT_FOUND when session_id is not a
+  // session of this user that has not expired. The session of this call can
+  // be revoked: the caller is then signed out.
+  rpc RevokeUserSession(RevokeUserSessionRequest) returns (RevokeUserSessionResponse);
 }
 
 // A user account. No response carries the password hash.
@@ -216,3 +225,37 @@ message UserAccess {
   // The display name of the role.
   string role_name = 7;
 }
+
+message ListUserSessionsRequest {
+  scylla.common.v1.UserId user_id = 1;
+}
+
+message ListUserSessionsResponse {
+  repeated UserSession sessions = 1;
+}
+
+// One session of a user. No field holds the token.
+message UserSession {
+  scylla.common.v1.SessionId session_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  // The last call with this session. The server moves it at most once every
+  // five minutes, so it can be up to five minutes old.
+  google.protobuf.Timestamp last_active_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  // The User-Agent header of the call that opened the session. Empty when the
+  // client sent none, and on sessions opened before the server recorded it.
+  string user_agent = 5;
+  // The IP address of the client that opened the session. Empty when unknown.
+  // Behind a reverse proxy, it is the address that the proxy reports only when
+  // the server trusts the forwarded headers.
+  string ip_address = 6;
+  // True for the session of this call.
+  bool current = 7;
+}
+
+message RevokeUserSessionRequest {
+  scylla.common.v1.UserId user_id = 1;
+  scylla.common.v1.SessionId session_id = 2;
+}
+
+message RevokeUserSessionResponse {}
