@@ -9,9 +9,9 @@ import "scylla/common/v1/common.proto";
 // package is the stream an agent opens to receive jobs.
 service AgentAdminService {
   // Requires `createAgent` on organization_id. In one transaction, creates the
-  // App, a secret labelled "default", the agent record and a grant of the
-  // builtin "organization-agent" role on the organization. The grant takes
-  // effect at once.
+  // App, a secret labelled `secret_label`, the agent record and a grant of
+  // the builtin "organization-agent" role on the organization. The grant
+  // takes effect at once.
   // The agent then calls AppAuthService.IssueToken, then AgentService.Open.
   rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse);
   // Requires `readApp` on agent_id. An App that exists but is not an agent
@@ -121,6 +121,9 @@ message CreateAgentRequest {
   // Trimmed; 1 to 255 bytes; unique among the Apps of the organization. The
   // name "trigger-runner" is reserved: INVALID_ARGUMENT.
   string name = 2;
+  // The label of the first secret, as CreateAppRequest.secret_label, with
+  // the same default.
+  optional string secret_label = 3;
 }
 
 message CreateAgentResponse {
@@ -128,7 +131,7 @@ message CreateAgentResponse {
   Agent agent = 1;
   // 64 lowercase hex characters, returned only here: the server stores a hash.
   // Pass it with `agent.agent_id` to AppAuthService.IssueToken.
-  // AppService.ListAppSecrets lists it under the label "default". To replace
+  // AppService.ListAppSecrets lists it under its `secret_label`. To replace
   // a lost secret, call AppService.CreateAppSecret on `agent.agent_id`.
   string secret = 2;
 }

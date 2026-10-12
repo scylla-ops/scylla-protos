@@ -217,6 +217,9 @@ message ListProjectJobsResponse {
 message ListOrganizationJobsRequest {
   scylla.common.v1.OrganizationId organization_id = 1;
   scylla.common.v1.PaginationRequest pagination = 2;
+  // Set: only the jobs that the server placed on this agent, at any state.
+  // A job that no agent took yet is not listed.
+  optional scylla.common.v1.AppId agent_id = 3;
 }
 
 message ListOrganizationJobsResponse {
