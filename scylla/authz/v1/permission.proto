@@ -59,7 +59,8 @@ enum Permission {
   PERMISSION_READ_PIPELINE = 27;
   PERMISSION_UPDATE_PIPELINE = 28;
   PERMISSION_DELETE_PIPELINE = 29;
-  // Starts a run of one pipeline. Also needed to create or update its triggers.
+  // Starts a run of one pipeline. Also needed to create or update its
+  // triggers, and to re-run one of its jobs (JobService.RerunJob).
   PERMISSION_RUN_PIPELINE = 30;
   // The server checks it on the agent's app at dispatch; an agent whose app
   // lacks it on the pipeline never receives its jobs.
@@ -124,6 +125,9 @@ enum Permission {
   // in a role only permissions it holds there or at SYSTEM; otherwise
   // FAILED_PRECONDITION.
   PERMISSION_MANAGE_ORG_ROLES = 63;
+  // Change the value and the description of one secret
+  // (SecretService.UpdateSecret).
+  PERMISSION_UPDATE_SECRET = 64;
 }
 
 // The tenancy level of a role or a grant, without the entity. Broadest to

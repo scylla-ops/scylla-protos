@@ -6,9 +6,9 @@ import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/common.proto";
 
 // Jobs (one execution of a pipeline each) and the log lines they produce.
-// PipelineService.RunPipeline, TriggerService.FireTriggerNow and a trigger
-// that fires on its own each create a job. Lists return jobs newest first
-// and log lines oldest first.
+// PipelineService.RunPipeline, JobService.RerunJob,
+// TriggerService.FireTriggerNow and a trigger that fires on its own each
+// create a job. Lists return jobs newest first and log lines oldest first.
 service JobService {
   // Requires readJob on the job.
   rpc GetJob(GetJobRequest) returns (GetJobResponse);
@@ -40,6 +40,18 @@ service JobService {
   // ends after the replay. A slow reader can miss live lines; ListJobLogs
   // holds the full record.
   rpc TailJobLogs(TailJobLogsRequest) returns (stream TailJobLogsResponse);
+  // Requires `runPipeline` on the job; a grant on its pipeline or on its
+  // project reaches it. Creates a new pending job with the nodes and the
+  // trigger inputs of the job, not the nodes of the pipeline as they are now.
+  // The origin of the new job is the caller, as for
+  // PipelineService.RunPipeline, and the new job does not refer to the old
+  // job. The old job does not change. The job must have ended (completed,
+  // failed, cancelled or orphaned), else FAILED_PRECONDITION. An unknown job
+  // gives the same answer as GetJob. The checks of RunPipeline apply before
+  // the server stores the job: each secret_ref resolves with the current
+  // value of the secret, else NOT_FOUND, and a resolved job larger than
+  // 8 MiB fails with INVALID_ARGUMENT. A failed check stores nothing.
+  rpc RerunJob(RerunJobRequest) returns (RerunJobResponse);
 }
 
 // Never UNSPECIFIED in a server response.
@@ -85,7 +97,8 @@ message Job {
     Terminal terminal = 12;
   }
 
-  // `human`, `app`: that principal called PipelineService.RunPipeline.
+  // `human`, `app`: that principal called PipelineService.RunPipeline or
+  // JobService.RerunJob.
   // `cron`, `webhook`: that trigger fired on its own or via FireTriggerNow.
   oneof origin {
     Human human = 20;
@@ -131,6 +144,9 @@ message Job {
 
 message JobNode {
   scylla.common.v1.NodeId node_id = 1;
+  // The maximum number of attempts of the node: PipelineNode.retries + 1, from
+  // the nodes of the job.
+  uint32 max_attempts = 2;
 
   oneof execution {
     Pending pending = 10;
@@ -139,8 +155,12 @@ message JobNode {
   }
 
   message Pending {}
+  // `started_at` is the start of the first attempt.
   message Running {
     google.protobuf.Timestamp started_at = 1;
+    // The current attempt. Starts at 1; each `node_retrying` of the agent
+    // adds 1.
+    uint32 attempt = 2;
   }
   // `started_at` is absent when the node was skipped or cancelled before it
   // started.
@@ -148,6 +168,8 @@ message JobNode {
     NodeOutcome outcome = 1;
     google.protobuf.Timestamp started_at = 2;
     google.protobuf.Timestamp finished_at = 3;
+    // The number of attempts that started. 0 when the node never started.
+    uint32 attempts = 4;
   }
 }
 
@@ -248,4 +270,13 @@ message TailJobLogsRequest {
 
 message TailJobLogsResponse {
   JobLogEntry log = 1;
+}
+
+message RerunJobRequest {
+  scylla.common.v1.JobId job_id = 1;
+}
+
+message RerunJobResponse {
+  // The id of the new job.
+  scylla.common.v1.JobId job_id = 1;
 }

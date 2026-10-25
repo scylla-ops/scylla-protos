@@ -3,10 +3,13 @@ syntax = "proto3";
 // Steps embedded in scylla.pipeline.v1.PipelineNode (declared by the client)
 // and scylla.agent.v1.AgentNode (received by the agent). A step runs in the
 // node's working directory and environment. Exit status 0 completes the node.
-// Any other status, death by signal or a failed spawn fails the node and the
-// job. The agent writes a spawn error to the node's stderr log. When the step's process exits, or the agent stops the node, the agent
-// kills every process of the step's process group, so a process started in
-// the background does not outlive its node.
+// Any other status, death by signal, a failed spawn or a timeout fails the
+// attempt. The node then starts its next attempt, or, after its last attempt
+// (scylla.pipeline.v1.PipelineNode.retries), fails with the job. The agent
+// writes a spawn error to the node's stderr log. When the step's process
+// exits, or the agent stops the node, the agent kills every process of the
+// step's process group, so a process started in the background does not
+// outlive its node.
 package scylla.exec.v1;
 
 // Interpreter for a ScriptStep. Each shell runs with `-e`: a failing command

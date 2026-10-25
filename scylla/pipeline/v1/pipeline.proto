@@ -28,7 +28,8 @@ service PipelineService {
   // Requires `listPipelines`, a system-scope permission. Returns every
   // pipeline of every organization, newest first.
   rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
-  // Requires `listPipelinesByProject` on the project. Newest first.
+  // Requires `listPipelinesByProject` on the project. Newest first. With
+  // `secret_ref`, only the pipelines of the project that use that secret.
   rpc ListProjectPipelines(ListProjectPipelinesRequest) returns (ListProjectPipelinesResponse);
   // Requires `listPipelinesByOrganization` on the organization. Newest first.
   rpc ListOrganizationPipelines(ListOrganizationPipelinesRequest) returns (ListOrganizationPipelinesResponse);
@@ -46,9 +47,13 @@ service PipelineService {
 }
 
 // One node of the DAG. The agent starts a node when each of its deps has
-// completed, so independent nodes run concurrently. When a node fails, the
-// agent stops the running nodes, skips the nodes that did not start, and
-// fails the job.
+// completed, so independent nodes run concurrently. A node runs at most
+// `retries` + 1 attempts. Each failed attempt starts the next attempt at once,
+// in the same workspace and working directory: an exit status that is not 0, a
+// death by signal, a failed spawn and a timeout fail an attempt. A cancel of
+// the job, or a stop because another node failed, ends the attempt with no
+// retry. When the last attempt fails, the node fails: the agent stops the
+// running nodes, skips the nodes that did not start, and fails the job.
 message PipelineNode {
   scylla.common.v1.NodeId node_id = 1;
   // Ids of other nodes of the same pipeline; no self, no duplicate, no id
@@ -61,6 +66,17 @@ message PipelineNode {
   string working_dir = 3;
   // At most 128 entries; keys unique within the node.
   repeated EnvVar env = 4;
+  // The time limit of each attempt, in seconds: 1 to 604800 (7 days). At the
+  // limit, the agent sends SIGTERM to the step, then SIGKILL after 5 seconds,
+  // and the attempt fails. Absent: the server applies its default node
+  // timeout when it sends the job to an agent; without a default, an attempt
+  // has no time limit. A value out of range fails CreatePipeline and
+  // UpdatePipeline with INVALID_ARGUMENT.
+  optional uint32 timeout_seconds = 5;
+  // The number of attempts after the first failed attempt: 0 to 10. 0 means
+  // one attempt. A value out of range fails CreatePipeline and UpdatePipeline
+  // with INVALID_ARGUMENT.
+  uint32 retries = 6;
 
   // Required.
   oneof step {
@@ -163,6 +179,10 @@ message ListPipelinesResponse {
 message ListProjectPipelinesRequest {
   scylla.common.v1.ProjectId project_id = 1;
   scylla.common.v1.PaginationRequest pagination = 2;
+  // Set: only the pipelines with at least one node env var whose
+  // EnvVar.secret_ref is this name. Same rules as EnvVar.secret_ref, else
+  // INVALID_ARGUMENT. The pagination does not change.
+  optional string secret_ref = 3;
 }
 
 message ListProjectPipelinesResponse {
