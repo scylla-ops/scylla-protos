@@ -111,6 +111,18 @@ message AgentNode {
   // Node env plus trigger inputs; a node key wins over an input with the same
   // key.
   repeated ResolvedEnv env = 4;
+  // The time limit of each attempt, in seconds. 0 means no time limit. The
+  // control plane has already applied its default node timeout. At the limit,
+  // the agent sends SIGTERM to the step, then SIGKILL after 5 seconds, writes
+  // one stderr log line, and the attempt fails.
+  uint32 timeout_seconds = 5;
+  // The node runs at most `retries` + 1 attempts, in the same workspace and
+  // working directory. When an attempt fails and an attempt is left, the agent
+  // writes one stderr log line, sends `node_retrying` and starts the next
+  // attempt at once. A cancel, or a stop because another node failed, ends the
+  // attempt with no retry. An agent that does not know this field runs the
+  // node once, with no time limit.
+  uint32 retries = 6;
 
   oneof step {
     scylla.exec.v1.ExecStep exec = 10;
@@ -135,10 +147,11 @@ message ResolvedEnv {
 // A status with no `event` is ignored. `job_started` needs a pending job.
 // `job_completed` needs a running job, and `job_failed` needs a pending or a
 // running job. A node event needs a running job: `node_started` needs a
-// pending node, `node_completed` and `node_failed` need a running node, and
-// `node_skipped` needs a node that has not finished. A node id must belong to
-// the job. When the job ends, each node that has not finished becomes
-// cancelled. An event that breaks a rule does not change the job.
+// pending node, `node_completed`, `node_failed` and `node_retrying` need a
+// running node, and `node_skipped` needs a node that has not finished. A node
+// id must belong to the job. When the job ends, each node that has not
+// finished becomes cancelled. An event that breaks a rule does not change the
+// job.
 // `job_started` opens the live tail for JobService.TailJobLogs, and the end
 // of the job closes it. The control plane does not store `error` in JobFailed
 // or NodeFailed.
@@ -157,6 +170,7 @@ message JobStatus {
     NodeCompleted node_completed = 14;
     NodeFailed node_failed = 15;
     NodeSkipped node_skipped = 16;
+    NodeRetrying node_retrying = 17;
   }
 
   message JobStarted {}
@@ -165,6 +179,7 @@ message JobStatus {
     string error = 1;
   }
 
+  // Sent one time, before the first attempt.
   message NodeStarted {
     scylla.common.v1.NodeId node_id = 1;
   }
@@ -176,9 +191,18 @@ message JobStatus {
   message NodeSkipped {
     scylla.common.v1.NodeId node_id = 1;
   }
+  // The last attempt failed. `error` is the error of the last attempt.
   message NodeFailed {
     scylla.common.v1.NodeId node_id = 1;
     string error = 2;
+  }
+  // An attempt failed and the agent starts the next attempt. `attempt` is the
+  // number of the next attempt: the current attempt plus 1, and at most
+  // `retries` + 1 of the node in the job. Another number does not change the
+  // job.
+  message NodeRetrying {
+    scylla.common.v1.NodeId node_id = 1;
+    uint32 attempt = 2;
   }
 }
 
