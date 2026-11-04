@@ -31,6 +31,9 @@ message App {
   // The time when an admin disabled the App. Not set while it is enabled. A disabled App gets
   // no token and no job.
   google.protobuf.Timestamp disabled_at = 10;
+  // The number of jobs that the agent holds now: the jobs that it took and that did not end.
+  // Compare with host.capacity. ListJobs with agent_id gives these jobs.
+  uint32 running_jobs = 11;
 }
 
 // The machine of an agent, as the agent tells it in its hello.
