@@ -200,6 +200,8 @@ message CreateAppTokenRequest {
   string name = 2;
   // The life of the token.
   scylla.auth.v1.TokenExpiry expiry = 3;
+  // What its short tokens can do. Not set: read-only.
+  scylla.auth.v1.TokenLimits limits = 4;
 }
 
 // The output of CreateAppToken.

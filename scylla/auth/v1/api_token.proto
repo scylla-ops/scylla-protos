@@ -27,6 +27,8 @@ message ApiToken {
   google.protobuf.Timestamp last_used_at = 8;
   // The time of its revocation. Not set for a token that is not revoked.
   google.protobuf.Timestamp revoked_at = 9;
+  // What its short tokens can do, inside the rights of the actor.
+  TokenLimits limits = 10;
 }
 
 // The life of a new API token. A token always expires: 1 year at most.
@@ -41,4 +43,31 @@ enum TokenExpiry {
   TOKEN_EXPIRY_DAYS_90 = 3;
   // 365 days.
   TOKEN_EXPIRY_DAYS_365 = 4;
+}
+
+// What the short tokens of an API token can do, inside the rights of its actor. The roles of the
+// actor still decide; the limits only remove rights.
+message TokenLimits {
+  // The methods that the token can call.
+  TokenPreset preset = 1;
+  // With TOKEN_PRESET_CUSTOM only: the methods that the token can call, 1 to 200, each as
+  // <package>.<Service>/<Method>, for example scylla.pipelines.v1.PipelineService/RunPipeline.
+  repeated string actions = 2;
+  // The projects that the token can reach, at most 100. Empty: no limit. Set: only the routes
+  // on one of these projects pass, and each route on a workspace or on a caller is refused.
+  repeated scylla.common.v1.Id project_ids = 3;
+}
+
+// A set of methods for an API token.
+enum TokenPreset {
+  // TOKEN_PRESET_READ_ONLY.
+  TOKEN_PRESET_UNSPECIFIED = 0;
+  // The methods whose names start with Get, List, Check or Tail.
+  TOKEN_PRESET_READ_ONLY = 1;
+  // The read-only methods, RunPipeline, FireTriggerNow, CancelJob and RerunJob.
+  TOKEN_PRESET_DEPLOY = 2;
+  // Each method that the roles of the actor allow.
+  TOKEN_PRESET_FULL = 3;
+  // The methods of actions only.
+  TOKEN_PRESET_CUSTOM = 4;
 }
