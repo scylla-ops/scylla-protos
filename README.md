@@ -18,8 +18,7 @@ scylla/<domain>/v1/<file>.proto   ->   package scylla.<domain>.v1;
 Imports use the same paths, for example
 `import "scylla/common/v1/id.proto";`.
 
-Each package has a version suffix. A breaking change goes into a new `v2`
-directory next to `v1`. Do not change `v1` in a breaking way.
+Each package has a version suffix. Scylla has no client of an old version yet (decision 39 of `scylla-ce`, "No compatibility code"): a change removes a field or an RPC with no `reserved` line and no deprecated mark, and the fields of a message have the numbers 1 to n.
 
 `google/rpc/` holds a subset of googleapis (`status.proto` and
 `error_details.proto`, with the same field numbers). The server sends a
@@ -62,7 +61,7 @@ git submodule update --init
 ## Change the contract
 
 1. Change the `.proto` files here.
-2. Run `just lint`, `just fmt` and `just breaking`.
+2. Run `just lint` and `just fmt`.
 3. Commit and push here.
 4. In the backend and in the web UI, move the submodule to the new commit and
    commit the new pin with the code that uses it. In the backend, add a new
@@ -77,7 +76,5 @@ Install [buf](https://buf.build/docs/installation) and
 |---|---|
 | `just lint` | Runs `buf lint` with the `STANDARD` and `COMMENTS` rules. |
 | `just fmt` | Runs `buf format -w`. It changes the files. |
-| `just breaking` | Runs `buf breaking` against the `main` branch of this repository. |
-| `just breaking '<ref>'` | Runs `buf breaking` against a different buf input, for example `'.git#tag=v0.4.0'`. |
 
-The breaking check uses the `FILE` rules. The rules are in `buf.yaml`.
+The rules are in `buf.yaml`.

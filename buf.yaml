@@ -8,8 +8,3 @@ lint:
   ignore:
     # A subset of googleapis, kept with its own names for the clients.
     - google
-breaking:
-  # FILE is the strict default: it also catches a type moving between files,
-  # which changes the wire contract for anyone generating per-file.
-  use:
-    - FILE

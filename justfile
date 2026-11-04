@@ -4,7 +4,7 @@ set quiet
 default:
     @just --list
 
-# Lint every .proto against the buf STANDARD rules
+# Lint every .proto against the buf STANDARD and COMMENTS rules
 [no-exit-message]
 lint:
     buf lint
@@ -13,8 +13,3 @@ lint:
 [no-exit-message]
 fmt:
     buf format -w
-
-# Fail if the schema breaks wire or source compatibility with a git ref (default: main)
-[no-exit-message]
-breaking against='.git#branch=main':
-    buf breaking --against '{{against}}'

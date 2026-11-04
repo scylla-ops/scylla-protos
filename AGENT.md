@@ -16,8 +16,7 @@ code.
   `import "scylla/common/v1/id.proto";`.
 - Do not move a file to a different directory. The backend and the web UI
   use these paths as import paths.
-- A breaking change goes into a new `v2` directory. Do not change `v1` in a
-  breaking way.
+- Scylla has no client of an old version yet (decision 39 of `scylla-ce`, "No compatibility code"): a change removes a field or an RPC with no `reserved` line and no deprecated mark, and the fields of a message have the numbers 1 to n.
 - Each RPC comment gives the permission that the RPC requires and the gRPC
   codes that it returns for a bad request.
 - `google/rpc/` is a subset of googleapis for the clients. Do not change its
@@ -44,8 +43,6 @@ code.
 |---|---|
 | `just lint` | Lint all files. |
 | `just fmt` | Format all files. This command changes the files. |
-| `just breaking` | Compare the files with the `main` branch of this repository. |
-| `just breaking '<input>'` | Compare the files with a different buf input. |
 
 Do these checks before each commit.
 
