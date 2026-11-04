@@ -23,6 +23,10 @@ service TokenService {
   rpc Refresh(RefreshRequest) returns (RefreshResponse);
   // Closes the session of a refresh token. Its tokens stop at once.
   rpc SignOut(SignOutRequest) returns (SignOutResponse);
+  // Exchanges the secret of an API token for a token of its actor. An unknown, revoked or
+  // expired secret gives UNAUTHENTICATED. The secret of a disabled App gives FAILED_PRECONDITION
+  // with the reason APP_DISABLED.
+  rpc ExchangeApiToken(ExchangeApiTokenRequest) returns (ExchangeApiTokenResponse);
 }
 
 // The input of ExchangeAppAssertion.
@@ -101,4 +105,17 @@ message IssuedToken {
   string value = 1;
   // The end of the validity of the token.
   google.protobuf.Timestamp expires_at = 2;
+}
+
+// The input of ExchangeApiToken.
+message ExchangeApiTokenRequest {
+  // The secret of the API token.
+  string api_token = 1;
+}
+
+// The output of ExchangeApiToken.
+message ExchangeApiTokenResponse {
+  // The token. It stops at once when its API token is revoked or its App is deleted or
+  // disabled.
+  IssuedToken token = 1;
 }

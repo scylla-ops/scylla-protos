@@ -4,6 +4,7 @@ package scylla.apps.v1;
 
 import "google/protobuf/timestamp.proto";
 import "scylla/apps/v1/app.proto";
+import "scylla/auth/v1/api_token.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 
@@ -38,6 +39,15 @@ service AppService {
   // Gives a new name to a key of an App: one line, 1 to 100 characters, else
   // INVALID_ARGUMENT. An unknown key gives NOT_FOUND. The admins of the workspace rename a key.
   rpc RenameAppKey(RenameAppKeyRequest) returns (RenameAppKeyResponse);
+  // Creates an API token of an App. The response has its secret one time: the server keeps only
+  // a hash. The route permission is create_app_token: the admins of the workspace.
+  rpc CreateAppToken(CreateAppTokenRequest) returns (CreateAppTokenResponse);
+  // Lists the API tokens of an App, the newest first, with the revoked and the expired ones. The
+  // route permission is list_app_tokens: the readers of the workspace.
+  rpc ListAppTokens(ListAppTokensRequest) returns (ListAppTokensResponse);
+  // Revokes an API token of an App: its short tokens stop at once. A token of another App gives
+  // NOT_FOUND. The route permission is revoke_app_token: the admins of the workspace.
+  rpc RevokeAppToken(RevokeAppTokenRequest) returns (RevokeAppTokenResponse);
 }
 
 // The input of CreateApp.
@@ -181,3 +191,44 @@ message RenameAppKeyResponse {
   // The key after the change.
   AppKey key = 1;
 }
+
+// The input of CreateAppToken.
+message CreateAppTokenRequest {
+  // The App.
+  scylla.common.v1.Id app_id = 1;
+  // The name of the token: one line, 1 to 100 characters.
+  string name = 2;
+  // The life of the token.
+  scylla.auth.v1.TokenExpiry expiry = 3;
+}
+
+// The output of CreateAppToken.
+message CreateAppTokenResponse {
+  // The token.
+  scylla.auth.v1.ApiToken token = 1;
+  // The secret of the token, for TokenService.ExchangeApiToken. No other call gives it.
+  string secret = 2;
+}
+
+// The input of ListAppTokens.
+message ListAppTokensRequest {
+  // The App.
+  scylla.common.v1.Id app_id = 1;
+}
+
+// The output of ListAppTokens.
+message ListAppTokensResponse {
+  // The tokens, the newest first.
+  repeated scylla.auth.v1.ApiToken tokens = 1;
+}
+
+// The input of RevokeAppToken.
+message RevokeAppTokenRequest {
+  // The App.
+  scylla.common.v1.Id app_id = 1;
+  // The token.
+  scylla.common.v1.Id token_id = 2;
+}
+
+// The output of RevokeAppToken.
+message RevokeAppTokenResponse {}

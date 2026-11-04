@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package scylla.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// An API token: a long secret that a program exchanges with TokenService.ExchangeApiToken for a
+// short token of its actor. The secret starts with scya_ for an App. The server keeps only a
+// hash of the secret.
+message ApiToken {
+  // The id of the token.
+  scylla.common.v1.Id id = 1;
+  // The actor of the token: an App.
+  scylla.common.v1.Id actor_id = 2;
+  // The name: one line, 1 to 100 characters.
+  string name = 3;
+  // The prefix and the last 4 characters of the secret, for example scya_...x7Q2.
+  string hint = 4;
+  // The actor that created the token.
+  scylla.common.v1.Id created_by = 5;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 6;
+  // The end of its validity.
+  google.protobuf.Timestamp expires_at = 7;
+  // The last exchange of the token. Not set before its first exchange.
+  google.protobuf.Timestamp last_used_at = 8;
+  // The time of its revocation. Not set for a token that is not revoked.
+  google.protobuf.Timestamp revoked_at = 9;
+}
+
+// The life of a new API token. A token always expires: 1 year at most.
+enum TokenExpiry {
+  // 90 days.
+  TOKEN_EXPIRY_UNSPECIFIED = 0;
+  // 7 days.
+  TOKEN_EXPIRY_DAYS_7 = 1;
+  // 30 days.
+  TOKEN_EXPIRY_DAYS_30 = 2;
+  // 90 days.
+  TOKEN_EXPIRY_DAYS_90 = 3;
+  // 365 days.
+  TOKEN_EXPIRY_DAYS_365 = 4;
+}
