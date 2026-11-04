@@ -28,6 +28,9 @@ message App {
   google.protobuf.Timestamp last_seen_at = 8;
   // The host of the agent, from the hello of its last stream. Not set before its first stream.
   Host host = 9;
+  // The time when an admin disabled the App. Not set while it is enabled. A disabled App gets
+  // no token and no job.
+  google.protobuf.Timestamp disabled_at = 10;
 }
 
 // The machine of an agent, as the agent tells it in its hello.

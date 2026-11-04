@@ -21,6 +21,13 @@ service AppService {
   rpc ListApps(ListAppsRequest) returns (ListAppsResponse);
   // Deletes an App with its keys and its roles. Its tokens stop at once, and its stream closes.
   rpc DeleteApp(DeleteAppRequest) returns (DeleteAppResponse);
+  // Disables an App: its tokens stop at once, its stream closes, and it gets no new token. The
+  // jobs that its agent runs end as orphaned, and its jobs that did not start go back to the
+  // pool. A second call keeps the first time. The admins of the workspace disable an App.
+  rpc DisableApp(DisableAppRequest) returns (DisableAppResponse);
+  // Enables a disabled App again: it gets tokens again, and its agent connects at its next
+  // try. An enabled App does not change. The admins of the workspace enable an App.
+  rpc EnableApp(EnableAppRequest) returns (EnableAppResponse);
   // Gives a new join code for an App. The previous open codes of the App stop.
   rpc CreateJoinCode(CreateJoinCodeRequest) returns (CreateJoinCodeResponse);
   // Adds a public key to an App, for example before a rotation. The App made the key pair.
@@ -90,6 +97,30 @@ message DeleteAppRequest {
 
 // The output of DeleteApp.
 message DeleteAppResponse {}
+
+// The input of DisableApp.
+message DisableAppRequest {
+  // The App to disable. Required.
+  scylla.common.v1.Id app_id = 1;
+}
+
+// The output of DisableApp.
+message DisableAppResponse {
+  // The App after the change.
+  App app = 1;
+}
+
+// The input of EnableApp.
+message EnableAppRequest {
+  // The App to enable. Required.
+  scylla.common.v1.Id app_id = 1;
+}
+
+// The output of EnableApp.
+message EnableAppResponse {
+  // The App after the change.
+  App app = 1;
+}
 
 // The input of CreateJoinCode.
 message CreateJoinCodeRequest {
