@@ -35,6 +35,9 @@ service AppService {
   // Revokes a key of an App. The tokens of this key stop at once, and the stream of the App
   // closes with ABORTED: the agent connects again with another key.
   rpc RevokeAppKey(RevokeAppKeyRequest) returns (RevokeAppKeyResponse);
+  // Gives a new name to a key of an App: one line, 1 to 100 characters, else
+  // INVALID_ARGUMENT. An unknown key gives NOT_FOUND. The admins of the workspace rename a key.
+  rpc RenameAppKey(RenameAppKeyRequest) returns (RenameAppKeyResponse);
 }
 
 // The input of CreateApp.
@@ -142,6 +145,8 @@ message AddAppKeyRequest {
   scylla.common.v1.Id app_id = 1;
   // The Ed25519 public key, 32 bytes.
   bytes public_key = 2;
+  // A name for the key: one line, 1 to 100 characters. Optional.
+  string label = 3;
 }
 
 // The output of AddAppKey.
@@ -160,3 +165,19 @@ message RevokeAppKeyRequest {
 
 // The output of RevokeAppKey.
 message RevokeAppKeyResponse {}
+
+// The input of RenameAppKey.
+message RenameAppKeyRequest {
+  // The App. Required.
+  scylla.common.v1.Id app_id = 1;
+  // The key. Required.
+  scylla.common.v1.Id key_id = 2;
+  // The new name: one line, 1 to 100 characters.
+  string label = 3;
+}
+
+// The output of RenameAppKey.
+message RenameAppKeyResponse {
+  // The key after the change.
+  AppKey key = 1;
+}

@@ -64,4 +64,8 @@ message AppKey {
   google.protobuf.Timestamp created_at = 3;
   // The time when the key was revoked. Not set for an active key.
   google.protobuf.Timestamp revoked_at = 4;
+  // The name of the key, for example the host name of its machine. Empty if it has none.
+  string label = 5;
+  // The last time that the key signed an assertion for a token. Not set before its first use.
+  google.protobuf.Timestamp last_used_at = 6;
 }

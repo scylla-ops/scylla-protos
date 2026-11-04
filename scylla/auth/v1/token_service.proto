@@ -45,6 +45,9 @@ message JoinAppRequest {
   string join_code = 1;
   // The Ed25519 public key of the machine, 32 bytes.
   bytes public_key = 2;
+  // A name for the key, for example the host name of the machine: one line, 1 to 100
+  // characters. Optional.
+  string label = 3;
 }
 
 // The output of JoinApp.
