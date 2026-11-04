@@ -20,9 +20,9 @@ service WorkspaceService {
   // Lists the workspaces that the caller can read, oldest first: the workspaces that it owns,
   // and the workspaces where it has a role.
   rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
-  // Changes the name or the slug of a workspace. The caller needs the permission
-  // update_workspace: its owners and its admins. A slug in use gives FAILED_PRECONDITION with
-  // the reason SLUG_IN_USE.
+  // Changes the name, the slug or the personal token switch of a workspace. The caller needs
+  // the permission update_workspace: its owners and its admins. A slug in use gives
+  // FAILED_PRECONDITION with the reason SLUG_IN_USE.
   rpc UpdateWorkspace(UpdateWorkspaceRequest) returns (UpdateWorkspaceResponse);
   // Deletes a workspace, with its owners and its invitations. Only an owner can do it, else
   // PERMISSION_DENIED: no role gives this right. A workspace with a project or an agent gives
@@ -94,6 +94,8 @@ message UpdateWorkspaceRequest {
   optional string name = 2;
   // The new slug, trimmed and in lower case.
   optional string slug = 3;
+  // Allows or refuses the personal tokens of the users in this workspace.
+  optional bool personal_tokens_enabled = 4;
 }
 
 // The output of UpdateWorkspace.

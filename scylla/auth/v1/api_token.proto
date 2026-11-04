@@ -6,12 +6,12 @@ import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
 
 // An API token: a long secret that a program exchanges with TokenService.ExchangeApiToken for a
-// short token of its actor. The secret starts with scya_ for an App. The server keeps only a
-// hash of the secret.
+// short token of its actor. The secret starts with scya_ for an App, and with scyp_ for a
+// personal token of a user. The server keeps only a hash of the secret.
 message ApiToken {
   // The id of the token.
   scylla.common.v1.Id id = 1;
-  // The actor of the token: an App.
+  // The actor of the token: an App, or the user of a personal token.
   scylla.common.v1.Id actor_id = 2;
   // The name: one line, 1 to 100 characters.
   string name = 3;

@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package scylla.accounts.v1;
+
+import "scylla/auth/v1/api_token.proto";
+import "scylla/common/v1/id.proto";
+
+// The personal tokens of the caller: API tokens whose short tokens act as the caller, inside
+// their limits. Each RPC needs the token of a user. A short token of an API token cannot create
+// a personal token.
+service PersonalTokenService {
+  // Creates a personal token of the caller. The response has its secret one time: the server
+  // keeps only a hash. A server with the personal tokens off gives FAILED_PRECONDITION with the
+  // reason PERSONAL_TOKENS_DISABLED.
+  rpc CreatePersonalToken(CreatePersonalTokenRequest) returns (CreatePersonalTokenResponse);
+  // Lists the personal tokens of the caller, the newest first, with the revoked and the expired
+  // ones, and tells where they act.
+  rpc ListPersonalTokens(ListPersonalTokensRequest) returns (ListPersonalTokensResponse);
+  // Revokes a personal token of the caller: its short tokens stop at once. A token of another
+  // user gives NOT_FOUND.
+  rpc RevokePersonalToken(RevokePersonalTokenRequest) returns (RevokePersonalTokenResponse);
+}
+
+// The input of CreatePersonalToken.
+message CreatePersonalTokenRequest {
+  // The name of the token: one line, 1 to 100 characters.
+  string name = 1;
+  // The life of the token.
+  scylla.auth.v1.TokenExpiry expiry = 2;
+  // What its short tokens can do. Not set: read-only.
+  scylla.auth.v1.TokenLimits limits = 3;
+}
+
+// The output of CreatePersonalToken.
+message CreatePersonalTokenResponse {
+  // The token.
+  scylla.auth.v1.ApiToken token = 1;
+  // The secret of the token, for TokenService.ExchangeApiToken. No other call gives it.
+  string secret = 2;
+}
+
+// The input of ListPersonalTokens.
+message ListPersonalTokensRequest {}
+
+// The output of ListPersonalTokens.
+message ListPersonalTokensResponse {
+  // The tokens, the newest first.
+  repeated scylla.auth.v1.ApiToken tokens = 1;
+  // False when the server refuses each personal token.
+  bool enabled = 2;
+  // The workspaces of the caller that refuse the personal tokens.
+  repeated scylla.common.v1.Id refused_workspace_ids = 3;
+}
+
+// The input of RevokePersonalToken.
+message RevokePersonalTokenRequest {
+  // The token.
+  scylla.common.v1.Id token_id = 1;
+}
+
+// The output of RevokePersonalToken.
+message RevokePersonalTokenResponse {}

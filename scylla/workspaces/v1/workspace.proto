@@ -17,6 +17,9 @@ message Workspace {
   string slug = 3;
   // The creation time. The server sets it.
   google.protobuf.Timestamp created_at = 4;
+  // True when the personal tokens of the users act in this workspace. False: each call of a
+  // personal token on this workspace gets PERMISSION_DENIED.
+  bool personal_tokens_enabled = 5;
 }
 
 // An owner of a workspace: a user with each right in it, with no role. A workspace has one

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package scylla.platform.v1;
+
+// The settings of the instance. Each RPC needs an instance admin, else PERMISSION_DENIED.
+service SettingsService {
+  // Returns the settings of the instance.
+  rpc GetInstanceSettings(GetInstanceSettingsRequest) returns (GetInstanceSettingsResponse);
+  // Changes the settings of the instance. A field that is not set does not change.
+  rpc UpdateInstanceSettings(UpdateInstanceSettingsRequest) returns (UpdateInstanceSettingsResponse);
+}
+
+// The settings of the instance.
+message InstanceSettings {
+  // True when the users can create and use personal tokens. False: each personal token and
+  // each of its short tokens stops at once, and no new one is created.
+  bool personal_tokens_enabled = 1;
+  // The number of personal tokens that are not revoked and not expired. The server sets it.
+  uint32 active_personal_tokens = 2;
+}
+
+// The input of GetInstanceSettings.
+message GetInstanceSettingsRequest {}
+
+// The output of GetInstanceSettings.
+message GetInstanceSettingsResponse {
+  // The settings.
+  InstanceSettings settings = 1;
+}
+
+// The input of UpdateInstanceSettings.
+message UpdateInstanceSettingsRequest {
+  // Allows or refuses the personal tokens.
+  optional bool personal_tokens_enabled = 1;
+}
+
+// The output of UpdateInstanceSettings.
+message UpdateInstanceSettingsResponse {
+  // The settings after the change.
+  InstanceSettings settings = 1;
+}

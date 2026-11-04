@@ -23,9 +23,10 @@ service TokenService {
   rpc Refresh(RefreshRequest) returns (RefreshResponse);
   // Closes the session of a refresh token. Its tokens stop at once.
   rpc SignOut(SignOutRequest) returns (SignOutResponse);
-  // Exchanges the secret of an API token for a token of its actor. An unknown, revoked or
-  // expired secret gives UNAUTHENTICATED. The secret of a disabled App gives FAILED_PRECONDITION
-  // with the reason APP_DISABLED.
+  // Exchanges the secret of an API token for a token of its actor, inside the limits of the API
+  // token. An unknown, revoked or expired secret gives UNAUTHENTICATED. The secret of a disabled
+  // App gives FAILED_PRECONDITION with the reason APP_DISABLED, and a personal token on a server
+  // with the personal tokens off gives the reason PERSONAL_TOKENS_DISABLED.
   rpc ExchangeApiToken(ExchangeApiTokenRequest) returns (ExchangeApiTokenResponse);
 }
 
