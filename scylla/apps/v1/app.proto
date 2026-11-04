@@ -3,6 +3,7 @@ syntax = "proto3";
 package scylla.apps.v1;
 
 import "google/protobuf/timestamp.proto";
+import "scylla/auth/v1/api_token.proto";
 import "scylla/common/v1/id.proto";
 
 // An App: the machine identity of a workspace. It proves its identity with an Ed25519 key pair
@@ -71,4 +72,42 @@ message AppKey {
   string label = 5;
   // The last time that the key signed an assertion for a token. Not set before its first use.
   google.protobuf.Timestamp last_used_at = 6;
+}
+
+// A CI identity of an App: the jobs of a repository of a CI provider get a token of the App with
+// the ID token of their job, with no secret. TokenService.ExchangeCiToken checks the ID token.
+message CiIdentity {
+  // The id of the CI identity.
+  scylla.common.v1.Id id = 1;
+  // The App.
+  scylla.common.v1.Id app_id = 2;
+  // The CI provider.
+  CiProvider provider = 3;
+  // The issuer of the ID tokens, for example https://token.actions.githubusercontent.com or
+  // https://gitlab.com.
+  string issuer = 4;
+  // The repository: owner/repo on GitHub, group/project on GitLab.
+  string repository = 5;
+  // The Git ref of the job: refs/heads/main on GitHub, main on GitLab. Empty: each ref.
+  string git_ref = 6;
+  // The environment of the job. Empty: each environment, and no environment.
+  string environment = 7;
+  // What the tokens of the CI jobs can do, inside the rights of the App.
+  scylla.auth.v1.TokenLimits limits = 8;
+  // The actor that added the CI identity.
+  scylla.common.v1.Id created_by = 9;
+  // The time when it was added.
+  google.protobuf.Timestamp created_at = 10;
+  // The last exchange of an ID token. Not set before the first one.
+  google.protobuf.Timestamp last_used_at = 11;
+}
+
+// A CI provider.
+enum CiProvider {
+  // Not used.
+  CI_PROVIDER_UNSPECIFIED = 0;
+  // GitHub Actions: the claims repository, ref and environment.
+  CI_PROVIDER_GITHUB = 1;
+  // GitLab CI: the claims project_path, ref and environment.
+  CI_PROVIDER_GITLAB = 2;
 }

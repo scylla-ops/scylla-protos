@@ -48,6 +48,15 @@ service AppService {
   // Revokes an API token of an App: its short tokens stop at once. A token of another App gives
   // NOT_FOUND. The route permission is revoke_app_token: the admins of the workspace.
   rpc RevokeAppToken(RevokeAppTokenRequest) returns (RevokeAppTokenResponse);
+  // Adds a CI identity to an App. The route permission is add_ci_identity: the admins of the
+  // workspace and the creator of the App.
+  rpc AddCiIdentity(AddCiIdentityRequest) returns (AddCiIdentityResponse);
+  // Lists the CI identities of an App, the oldest first. The route permission is
+  // list_ci_identities: the readers of the workspace and the creator of the App.
+  rpc ListCiIdentities(ListCiIdentitiesRequest) returns (ListCiIdentitiesResponse);
+  // Removes a CI identity of an App: no new token comes from it. A CI identity of another App
+  // gives NOT_FOUND. The route permission is remove_ci_identity.
+  rpc RemoveCiIdentity(RemoveCiIdentityRequest) returns (RemoveCiIdentityResponse);
 }
 
 // The input of CreateApp.
@@ -234,3 +243,51 @@ message RevokeAppTokenRequest {
 
 // The output of RevokeAppToken.
 message RevokeAppTokenResponse {}
+
+// The input of AddCiIdentity.
+message AddCiIdentityRequest {
+  // The App.
+  scylla.common.v1.Id app_id = 1;
+  // The CI provider. Required.
+  CiProvider provider = 2;
+  // The issuer: an http or https URL. Empty: https://token.actions.githubusercontent.com for
+  // GitHub, https://gitlab.com for GitLab.
+  string issuer = 3;
+  // The repository: owner/repo on GitHub, group/project on GitLab. Required.
+  string repository = 4;
+  // The Git ref of the job. Empty: each ref.
+  string git_ref = 5;
+  // The environment of the job. Empty: each environment.
+  string environment = 6;
+  // What the tokens of the CI jobs can do. Not set: read-only.
+  scylla.auth.v1.TokenLimits limits = 7;
+}
+
+// The output of AddCiIdentity.
+message AddCiIdentityResponse {
+  // The CI identity.
+  CiIdentity identity = 1;
+}
+
+// The input of ListCiIdentities.
+message ListCiIdentitiesRequest {
+  // The App.
+  scylla.common.v1.Id app_id = 1;
+}
+
+// The output of ListCiIdentities.
+message ListCiIdentitiesResponse {
+  // The CI identities, the oldest first.
+  repeated CiIdentity identities = 1;
+}
+
+// The input of RemoveCiIdentity.
+message RemoveCiIdentityRequest {
+  // The App.
+  scylla.common.v1.Id app_id = 1;
+  // The CI identity.
+  scylla.common.v1.Id identity_id = 2;
+}
+
+// The output of RemoveCiIdentity.
+message RemoveCiIdentityResponse {}

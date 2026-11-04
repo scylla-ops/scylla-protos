@@ -28,6 +28,11 @@ service TokenService {
   // App gives FAILED_PRECONDITION with the reason APP_DISABLED, and a personal token on a server
   // with the personal tokens off gives the reason PERSONAL_TOKENS_DISABLED.
   rpc ExchangeApiToken(ExchangeApiTokenRequest) returns (ExchangeApiTokenResponse);
+  // Exchanges the ID token of a CI job for a token of an App, with no secret: a CI identity of
+  // the App must match its issuer, its repository, and its ref and environment if it names them.
+  // The audience of the ID token must be the URL of this server. Another ID token gives
+  // UNAUTHENTICATED, and a disabled App gives FAILED_PRECONDITION with the reason APP_DISABLED.
+  rpc ExchangeCiToken(ExchangeCiTokenRequest) returns (ExchangeCiTokenResponse);
 }
 
 // The input of ExchangeAppAssertion.
@@ -118,5 +123,19 @@ message ExchangeApiTokenRequest {
 message ExchangeApiTokenResponse {
   // The token. It stops at once when its API token is revoked or its App is deleted or
   // disabled.
+  IssuedToken token = 1;
+}
+
+// The input of ExchangeCiToken.
+message ExchangeCiTokenRequest {
+  // The App.
+  scylla.common.v1.Id app_id = 1;
+  // The ID token of the CI job.
+  string id_token = 2;
+}
+
+// The output of ExchangeCiToken.
+message ExchangeCiTokenResponse {
+  // The token of the App, inside the limits of the CI identity.
   IssuedToken token = 1;
 }
