@@ -5,8 +5,7 @@ package scylla.workspaces.v1;
 import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
 
-// A workspace: the top-level container of the projects and the agents. ListOwners gives its
-// owners.
+// A workspace: the top-level container of the projects and the agents.
 message Workspace {
   // The id of the workspace.
   scylla.common.v1.Id id = 1;
@@ -20,15 +19,4 @@ message Workspace {
   // True when the personal tokens of the users act in this workspace. False: each call of a
   // personal token on this workspace gets PERMISSION_DENIED.
   bool personal_tokens_enabled = 5;
-}
-
-// An owner of a workspace: a user with each right in it, with no role. A workspace has one
-// owner or more.
-message WorkspaceOwner {
-  // The user.
-  scylla.common.v1.Id user_id = 1;
-  // The display name of the user.
-  string display_name = 2;
-  // When the user became an owner.
-  google.protobuf.Timestamp since = 3;
 }

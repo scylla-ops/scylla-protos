@@ -6,11 +6,10 @@ import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 import "scylla/workspaces/v1/workspace.proto";
 
-// Creates, reads, changes, deletes and lists workspaces, and changes their owners. Each RPC
-// needs an authenticated actor, else UNAUTHENTICATED. An unknown workspace gives
-// PERMISSION_DENIED, as a refusal does.
+// Creates, reads, changes, deletes and lists workspaces. Each RPC needs an authenticated actor,
+// else UNAUTHENTICATED. An unknown workspace gives PERMISSION_DENIED, as a refusal does.
 service WorkspaceService {
-  // Creates a workspace. The caller becomes its first owner. Only a user can own a workspace,
+  // Creates a workspace. The caller gets the role owner on it. Only a user can hold this role,
   // else PERMISSION_DENIED. A user can create the number of workspaces in the instance settings:
   // over it, FAILED_PRECONDITION with the reason WORKSPACE_LIMIT and the detail limit. The personal
   // workspace of a user does not count, and an instance admin has no limit. A slug in use gives FAILED_PRECONDITION with the reason
@@ -19,26 +18,17 @@ service WorkspaceService {
   // Reads one workspace, by its id or by its slug. A slug is public. An unknown slug gives
   // PERMISSION_DENIED, as a refusal does.
   rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse);
-  // Lists the workspaces that the caller can read, oldest first: the workspaces that it owns,
-  // and the workspaces where it has a role.
+  // Lists the workspaces that the caller can read, oldest first: the workspaces where it has a
+  // role.
   rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
   // Changes the name, the slug or the personal token switch of a workspace. The caller needs
-  // the permission update_workspace: its owners and its admins. A slug in use gives
+  // the permission update_workspace: for example the roles owner and admin. A slug in use gives
   // FAILED_PRECONDITION with the reason SLUG_IN_USE.
   rpc UpdateWorkspace(UpdateWorkspaceRequest) returns (UpdateWorkspaceResponse);
-  // Deletes a workspace, with its owners and its invitations. Only an owner can do it, else
-  // PERMISSION_DENIED: no role gives this right. A workspace with a project or an agent gives
-  // FAILED_PRECONDITION with the reason WORKSPACE_NOT_EMPTY.
+  // Deletes a workspace, with its owners and its invitations. The caller needs the permission
+  // delete_workspace, else PERMISSION_DENIED: for example the role owner. A workspace with a
+  // project or an agent gives FAILED_PRECONDITION with the reason WORKSPACE_NOT_EMPTY.
   rpc DeleteWorkspace(DeleteWorkspaceRequest) returns (DeleteWorkspaceResponse);
-  // Makes a user an owner of a workspace. Only an owner can do it, else PERMISSION_DENIED: no
-  // role gives this right. An unknown user gives NOT_FOUND. An owner stays an owner.
-  rpc AddOwner(AddOwnerRequest) returns (AddOwnerResponse);
-  // Takes an owner out of a workspace, for example the caller itself. Only an owner can do it,
-  // else PERMISSION_DENIED. The last owner stays: FAILED_PRECONDITION with the reason
-  // LAST_OWNER. A user that is not an owner changes nothing.
-  rpc RemoveOwner(RemoveOwnerRequest) returns (RemoveOwnerResponse);
-  // Lists the owners of a workspace, in user id order. A reader of the workspace can do it.
-  rpc ListOwners(ListOwnersRequest) returns (ListOwnersResponse);
 }
 
 // The input of CreateWorkspace.
@@ -114,41 +104,3 @@ message DeleteWorkspaceRequest {
 
 // The output of DeleteWorkspace.
 message DeleteWorkspaceResponse {}
-
-// The input of AddOwner.
-message AddOwnerRequest {
-  // The workspace. Required.
-  scylla.common.v1.Id workspace_id = 1;
-  // The user to make an owner. Required.
-  scylla.common.v1.Id user_id = 2;
-}
-
-// The output of AddOwner.
-message AddOwnerResponse {}
-
-// The input of RemoveOwner.
-message RemoveOwnerRequest {
-  // The workspace. Required.
-  scylla.common.v1.Id workspace_id = 1;
-  // The owner to take out. Required.
-  scylla.common.v1.Id user_id = 2;
-}
-
-// The output of RemoveOwner.
-message RemoveOwnerResponse {}
-
-// The input of ListOwners.
-message ListOwnersRequest {
-  // The workspace. Required.
-  scylla.common.v1.Id workspace_id = 1;
-  // The page to return.
-  scylla.common.v1.PageRequest page = 2;
-}
-
-// The output of ListOwners.
-message ListOwnersResponse {
-  // The owners of the page, in user id order.
-  repeated WorkspaceOwner owners = 1;
-  // How to get the next page.
-  scylla.common.v1.PageResponse page = 2;
-}
