@@ -2,15 +2,17 @@ syntax = "proto3";
 
 package scylla.accounts.v1;
 
+import "google/protobuf/timestamp.proto";
 import "scylla/accounts/v1/user.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 
-// The console of the users, for the admins of the instance. Each RPC checks its permission on
-// the platform, and only an instance admin passes: else PERMISSION_DENIED. An unknown user
+// The console of the users. Each RPC checks its permission on the platform: an instance admin
+// passes, and a role of the platform level gives it, else PERMISSION_DENIED. An unknown user
 // gives NOT_FOUND.
 service UserAdminService {
-  // Lists the users in id order, with a filter on the email, the handle and the display name.
+  // Lists the users in id order, with a filter on the email, the handle and the display name,
+  // and with the instance roles, the workspaces and the last sign-in of each user.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   // Returns one user.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
@@ -46,16 +48,44 @@ message ListUsersRequest {
   // A text that the email, the handle or the display name contains, in any case. Empty keeps
   // each user.
   string query = 1;
+  // True keeps only the users with an instance role.
+  bool with_instance_role = 2;
   // The page to return.
-  scylla.common.v1.PageRequest page = 2;
+  scylla.common.v1.PageRequest page = 3;
+}
+
+// An instance role of a user.
+message InstanceRole {
+  // The key of the role in RoleService.
+  string key = 1;
+  // The name of the role.
+  string name = 2;
+  // True if the role comes from the server.
+  bool builtin = 3;
+}
+
+// One user of the list, with its place on the instance.
+message UserEntry {
+  // The user.
+  User user = 1;
+  // The roles of the user on the whole instance.
+  repeated InstanceRole instance_roles = 2;
+  // The names of the workspaces that the user owns or has a role in, in name order.
+  repeated string workspaces = 3;
+  // The time of the last sign-in. Not set if the user never signed in.
+  google.protobuf.Timestamp last_sign_in_at = 4;
 }
 
 // The output of ListUsers.
 message ListUsersResponse {
   // The users of the page, oldest first.
-  repeated User users = 1;
+  repeated UserEntry users = 1;
   // How to get the next page.
   scylla.common.v1.PageResponse page = 2;
+  // The number of users that the query keeps, with or without an instance role.
+  uint32 total = 3;
+  // The number of users that the query keeps, with an instance role.
+  uint32 total_with_instance_role = 4;
 }
 
 // The input of GetUser.

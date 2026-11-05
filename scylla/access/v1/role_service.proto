@@ -1,0 +1,176 @@
+syntax = "proto3";
+
+package scylla.access.v1;
+
+import "scylla/common/v1/id.proto";
+
+// Tells the catalog of the permissions, reads the roles, and changes the custom roles. A built-in
+// role comes from the server and does not change. A custom role has one owner: the instance, or
+// one workspace. Each RPC needs an authenticated actor, else UNAUTHENTICATED.
+service RoleService {
+  // Returns the catalog of the permissions. Each actor can read it.
+  rpc ListPermissionCatalog(ListPermissionCatalogRequest) returns (ListPermissionCatalogResponse);
+  // Lists the roles, with no pages: first the built-in roles, then the custom roles by name.
+  // With no workspace, it lists the roles of the instance: the caller needs the permission
+  // list_roles on the platform. With a workspace, it lists the roles for that workspace: the
+  // caller needs the permission list_roles on the workspace.
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  // Returns one role. The permission is get_role, on the same object as ListRoles. An unknown
+  // key gives PERMISSION_DENIED, as a refusal does.
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  // Makes a custom role. The permission is create_role, on the same object as ListRoles. The
+  // server adds the implicit permissions and the permissions that the given ones depend on. A
+  // permission that is not in the catalog, or that is above the level of the role, gives
+  // INVALID_ARGUMENT. A permission that the caller does not hold gives FAILED_PRECONDITION with
+  // ESCALATION. A used name gives FAILED_PRECONDITION with ROLE_NAME_IN_USE.
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  // Changes the name, the description and the permissions of a custom role. The level, the
+  // holders and the owner do not change. The change is live at once for each holder. The
+  // permission is update_role, on the owner of the role. An unknown role gives
+  // PERMISSION_DENIED, and a built-in role FAILED_PRECONDITION with BUILTIN_ROLE. The other
+  // errors are those of CreateRole.
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  // Deletes a custom role. The permission is delete_role, on the owner of the role. A role that
+  // an actor holds gives FAILED_PRECONDITION with ROLE_IN_USE. An unknown role gives
+  // PERMISSION_DENIED, and a built-in role FAILED_PRECONDITION with BUILTIN_ROLE.
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+}
+
+// One permission of the catalog: an action on an area.
+message CatalogPermission {
+  // The id of the permission: <area>.<action>, for example pipelines.edit.
+  string id = 1;
+  // The action: view, create, edit, delete, run or manage.
+  string action = 2;
+  // The ids of the permissions that this one needs. A role that has this one also has them.
+  repeated string depends_on = 3;
+  // True if each role of the level of the area has this permission, and it cannot be removed.
+  bool implicit = 4;
+}
+
+// One area of the catalog: a kind of resource, with its permissions.
+message CatalogArea {
+  // The id of the area, for example pipelines.
+  string id = 1;
+  // The lowest level where a role can hold the area: platform, workspace or project. A role
+  // holds only the areas of its level and of the levels under it.
+  string level = 2;
+  // True if only a role for apps can hold the area.
+  bool machine = 3;
+  // The permissions of the area.
+  repeated CatalogPermission permissions = 4;
+}
+
+// The input of ListPermissionCatalog.
+message ListPermissionCatalogRequest {}
+
+// The output of ListPermissionCatalog.
+message ListPermissionCatalogResponse {
+  // The areas, from the platform down to the project.
+  repeated CatalogArea areas = 1;
+}
+
+// A role: a named set of permissions on one level.
+message Role {
+  // The key of the role: a fixed text for a built-in role, for example workspace-member, and the
+  // id of the role for a custom role.
+  string key = 1;
+  // The name. The web app can show its own translation for a built-in role.
+  string name = 2;
+  // What the role does.
+  string description = 3;
+  // The level where the role is given: platform, workspace or project.
+  string level = 4;
+  // Who can hold the role: people or apps.
+  string holder = 5;
+  // The name of the role in Grant, Revoke and ListAccess of AccessService.
+  string grant_name = 6;
+  // True if the role comes from the server. It does not change.
+  bool builtin = 7;
+  // True if the role has each permission of its level, also later ones.
+  bool full_control = 8;
+  // The ids of the permissions of the role.
+  repeated string permissions = 9;
+  // The number of grants of the role, on all the objects. Zero in an answer for a workspace.
+  uint32 holder_count = 10;
+  // The workspace that owns a custom role. Not set for a built-in role and for a role of the
+  // instance.
+  scylla.common.v1.Id workspace_id = 11;
+}
+
+// The input of ListRoles.
+message ListRolesRequest {
+  // The workspace. With it, the list holds the built-in roles of the workspace and project
+  // levels, the roles of these levels that the instance owns, and the roles of the workspace.
+  // Not set: the list holds each built-in role and each role of the instance.
+  scylla.common.v1.Id workspace_id = 1;
+}
+
+// The output of ListRoles.
+message ListRolesResponse {
+  // The roles.
+  repeated Role roles = 1;
+}
+
+// The input of GetRole.
+message GetRoleRequest {
+  // The key of the role. Required.
+  string key = 1;
+  // The workspace, with the same meaning as in ListRoles.
+  scylla.common.v1.Id workspace_id = 2;
+}
+
+// The output of GetRole.
+message GetRoleResponse {
+  // The role.
+  Role role = 1;
+}
+
+// The input of CreateRole.
+message CreateRoleRequest {
+  // The name, 1 to 100 characters after trim, unique for the owner in any case.
+  string name = 1;
+  // What the role does, at most 500 characters.
+  string description = 2;
+  // The level: platform, workspace or project. It does not change later.
+  string level = 3;
+  // Who can hold the role: people or apps. A role of the platform level is for people only.
+  string holder = 4;
+  // The ids of the permissions.
+  repeated string permissions = 5;
+  // The workspace that owns the role. Not set: the instance owns it.
+  scylla.common.v1.Id workspace_id = 6;
+}
+
+// The output of CreateRole.
+message CreateRoleResponse {
+  // The new role.
+  Role role = 1;
+}
+
+// The input of UpdateRole. Each field replaces the old value.
+message UpdateRoleRequest {
+  // The role. Required.
+  scylla.common.v1.Id role_id = 1;
+  // The name, with the rules of CreateRole.
+  string name = 2;
+  // What the role does, with the rules of CreateRole.
+  string description = 3;
+  // The ids of the permissions.
+  repeated string permissions = 4;
+}
+
+// The output of UpdateRole.
+message UpdateRoleResponse {
+  // The role after the change.
+  Role role = 1;
+}
+
+// The input of DeleteRole.
+message DeleteRoleRequest {
+  // The role. Required.
+  scylla.common.v1.Id role_id = 1;
+}
+
+// The output of DeleteRole. It is empty, so a later field does not change the RPC.
+message DeleteRoleResponse {}

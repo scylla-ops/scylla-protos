@@ -12,10 +12,14 @@ service AccessService {
   // Gives a role on an object to an actor. The caller needs the permission grant on the
   // object. An unknown object gives PERMISSION_DENIED, as a refusal does. An agent gets a role
   // only in its own workspace: an object of another workspace gives FAILED_PRECONDITION with
-  // the reason ACTOR_OUTSIDE_WORKSPACE.
+  // the reason ACTOR_OUTSIDE_WORKSPACE. On the platform, the role is a role of the platform
+  // level, and the actor is a user: another actor gives FAILED_PRECONDITION with
+  // ACTOR_NOT_A_USER. The caller must hold each permission of a role of the platform level:
+  // else FAILED_PRECONDITION with ESCALATION.
   rpc Grant(GrantRequest) returns (GrantResponse);
   // Takes back a role on an object from an actor. The caller needs the permission revoke on
-  // the object.
+  // the object. On the platform, the last active instance admin stays: FAILED_PRECONDITION with
+  // LAST_ADMIN.
   rpc Revoke(RevokeRequest) returns (RevokeResponse);
   // Lists the access to an object: for a workspace, its owners first, then the roles on the
   // object. The caller needs the permission list_access: the readers of a workspace, the
@@ -41,7 +45,8 @@ message ObjectRef {
 message GrantRequest {
   // The object of the role. Required.
   ObjectRef object = 1;
-  // The role: a relation of the definition, for example viewer on a project.
+  // The role: a relation of the definition, for example viewer on a project, or the grant_name
+  // of a role of RoleService.
   string role = 2;
   // The actor that gets the role. Required. The actor must exist.
   scylla.common.v1.Id actor_id = 3;

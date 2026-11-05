@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package scylla.platform.v1;
 
-// The settings of the instance. Each RPC needs an instance admin, else PERMISSION_DENIED.
+// The settings of the instance. Each RPC checks its permission on the platform: an instance admin
+// passes, and a role of the platform level gives it, else PERMISSION_DENIED.
 service SettingsService {
   // Returns the settings of the instance.
   rpc GetInstanceSettings(GetInstanceSettingsRequest) returns (GetInstanceSettingsResponse);

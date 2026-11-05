@@ -10,8 +10,9 @@ import "scylla/workspaces/v1/workspace.proto";
 // needs an authenticated actor, else UNAUTHENTICATED. An unknown workspace gives
 // PERMISSION_DENIED, as a refusal does.
 service WorkspaceService {
-  // Creates a workspace. The caller becomes its first owner. Only a user can own a workspace,
-  // else PERMISSION_DENIED. A slug in use gives FAILED_PRECONDITION with the reason
+  // Creates a workspace. The caller becomes its first owner. The caller needs the permission
+  // create_workspace on the platform: an instance admin passes, and a role of the platform level
+  // gives it. Only a user can own a workspace, else PERMISSION_DENIED. A slug in use gives FAILED_PRECONDITION with the reason
   // SLUG_IN_USE.
   rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
   // Reads one workspace, by its id or by its slug. A slug is public. An unknown slug gives
