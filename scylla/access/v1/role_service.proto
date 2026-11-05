@@ -27,12 +27,11 @@ service RoleService {
   // Changes the name, the description and the permissions of a custom role. The level, the
   // holders and the owner do not change. The change is live at once for each holder. The
   // permission is update_role, on the owner of the role. An unknown role gives
-  // PERMISSION_DENIED, and a built-in role FAILED_PRECONDITION with BUILTIN_ROLE. The other
-  // errors are those of CreateRole.
+  // PERMISSION_DENIED. The other errors are those of CreateRole.
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
   // Deletes a custom role. The permission is delete_role, on the owner of the role. A role that
   // an actor holds gives FAILED_PRECONDITION with ROLE_IN_USE. An unknown role gives
-  // PERMISSION_DENIED, and a built-in role FAILED_PRECONDITION with BUILTIN_ROLE.
+  // PERMISSION_DENIED.
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
 }
 

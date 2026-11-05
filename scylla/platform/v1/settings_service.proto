@@ -18,6 +18,9 @@ message InstanceSettings {
   bool personal_tokens_enabled = 1;
   // The number of personal tokens that are not revoked and not expired. The server sets it.
   uint32 active_personal_tokens = 2;
+  // The number of workspaces that one user can create. The personal workspace of a user does not
+  // count, and an instance admin has no limit.
+  uint32 workspace_limit = 3;
 }
 
 // The input of GetInstanceSettings.
@@ -33,6 +36,9 @@ message GetInstanceSettingsResponse {
 message UpdateInstanceSettingsRequest {
   // Allows or refuses the personal tokens.
   optional bool personal_tokens_enabled = 1;
+  // The number of workspaces that one user can create. A value above 2147483647 gives
+  // INVALID_ARGUMENT. A lower value removes no workspace.
+  optional uint32 workspace_limit = 2;
 }
 
 // The output of UpdateInstanceSettings.
