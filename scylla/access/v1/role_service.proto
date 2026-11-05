@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package scylla.access.v1;
 
+import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
 
 // Tells the catalog of the permissions, reads the roles, and changes the custom roles. A built-in
@@ -13,7 +14,8 @@ service RoleService {
   // Lists the roles, with no pages: first the built-in roles, then the custom roles by name.
   // With no workspace, it lists the roles of the instance: the caller needs the permission
   // list_roles on the platform. With a workspace, it lists the roles for that workspace: the
-  // caller needs the permission list_roles on the workspace.
+  // caller needs the permission list_roles on the workspace, which each reader of the workspace
+  // has.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   // Returns one role. The permission is get_role, on the same object as ListRoles. An unknown
   // key gives PERMISSION_DENIED, as a refusal does.
@@ -29,9 +31,15 @@ service RoleService {
   // permission is update_role, on the owner of the role. An unknown role gives
   // PERMISSION_DENIED. The other errors are those of CreateRole.
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
-  // Deletes a custom role. The permission is delete_role, on the owner of the role. A role that
-  // an actor holds gives FAILED_PRECONDITION with ROLE_IN_USE. An unknown role gives
-  // PERMISSION_DENIED.
+  // Lists the holders of a role, at most 100 in name order, with the total. The permission is
+  // list_role_holders, on the same object as ListRoles. An unknown key gives PERMISSION_DENIED, as
+  // a refusal does.
+  rpc ListRoleHolders(ListRoleHoldersRequest) returns (ListRoleHoldersResponse);
+  // Deletes a custom role. The permission is delete_role, on the owner of the role. With move_to,
+  // the holders get that role first, and they keep their other roles. Without it, a role that an
+  // actor holds gives FAILED_PRECONDITION with ROLE_IN_USE. A role that is not a target of a move
+  // gives INVALID_ARGUMENT. A target with a permission that the caller does not hold gives
+  // FAILED_PRECONDITION with ESCALATION. An unknown role gives PERMISSION_DENIED.
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
 }
 
@@ -90,7 +98,8 @@ message Role {
   bool full_control = 8;
   // The ids of the permissions of the role.
   repeated string permissions = 9;
-  // The number of grants of the role, on all the objects. Zero in an answer for a workspace.
+  // The number of grants of the role, on all the objects. In an answer for a workspace: on the
+  // workspace and its projects.
   uint32 holder_count = 10;
   // The workspace that owns a custom role. Not set for a built-in role and for a role of the
   // instance.
@@ -165,10 +174,49 @@ message UpdateRoleResponse {
   Role role = 1;
 }
 
+// The input of ListRoleHolders.
+message ListRoleHoldersRequest {
+  // The key of the role. Required.
+  string key = 1;
+  // The workspace. With it, the list holds the grants on the workspace and its projects.
+  scylla.common.v1.Id workspace_id = 2;
+}
+
+// One grant of a role.
+message RoleHolderEntry {
+  // The actor.
+  scylla.common.v1.Id actor_id = 1;
+  // The kind of the actor, for example user or agent.
+  string actor_kind = 2;
+  // The display name of a user, or the name of an app.
+  string display_name = 3;
+  // The handle of a user. Empty if the user has none.
+  string handle = 4;
+  // The kind of the scope of the grant: platform, workspace or project.
+  string scope_kind = 5;
+  // The id of the scope.
+  scylla.common.v1.Id scope_id = 6;
+  // The name of a workspace or of a project. Empty for the platform.
+  string scope_name = 7;
+  // The time of the grant. Not set if the grant is older than this field.
+  google.protobuf.Timestamp granted_at = 8;
+}
+
+// The output of ListRoleHolders.
+message ListRoleHoldersResponse {
+  // The grants, at most 100.
+  repeated RoleHolderEntry holders = 1;
+  // The number of grants of the role, also those that are not in the list.
+  uint32 total = 2;
+}
+
 // The input of DeleteRole.
 message DeleteRoleRequest {
   // The role. Required.
   scylla.common.v1.Id role_id = 1;
+  // The name in Grant of the role that the holders get. It has the same level and the same
+  // holders as the deleted role, and the owner of the deleted role can use it. Empty: no move.
+  string move_to = 2;
 }
 
 // The output of DeleteRole. It is empty, so a later field does not change the RPC.

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package scylla.access.v1;
 
+import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 
@@ -12,19 +13,38 @@ service AccessService {
   // Gives a role on an object to an actor. The caller needs the permission grant on the
   // object. An unknown object gives PERMISSION_DENIED, as a refusal does. An agent gets a role
   // only in its own workspace: an object of another workspace gives FAILED_PRECONDITION with
-  // the reason ACTOR_OUTSIDE_WORKSPACE. On the platform, the role is a role of the platform
+  // the reason ACTOR_OUTSIDE_WORKSPACE. A role for apps given to a user, or a custom role for
+  // other holders, gives INVALID_ARGUMENT. On the platform, the role is a role of the platform
   // level, and the actor is a user: another actor gives FAILED_PRECONDITION with
-  // ACTOR_NOT_A_USER. The caller must hold each permission of a role of the platform level:
-  // else FAILED_PRECONDITION with ESCALATION.
+  // ACTOR_NOT_A_USER. On a project, a user needs a role in the workspace of the project: else
+  // FAILED_PRECONDITION with NO_WORKSPACE_ROLE. The caller must hold each permission of the
+  // role: else FAILED_PRECONDITION with ESCALATION.
   rpc Grant(GrantRequest) returns (GrantResponse);
   // Takes back a role on an object from an actor. The caller needs the permission revoke on
   // the object. On the platform, the last active instance admin stays: FAILED_PRECONDITION with
-  // LAST_ADMIN.
+  // LAST_ADMIN. When a user loses the last role in a workspace, the user also loses the roles on
+  // the projects of the workspace.
   rpc Revoke(RevokeRequest) returns (RevokeResponse);
   // Lists the access to an object: for a workspace, its owners first, then the roles on the
   // object. The caller needs the permission list_access: the readers of a workspace, the
   // viewers of a project. An unknown object gives PERMISSION_DENIED, as a refusal does.
   rpc ListAccess(ListAccessRequest) returns (ListAccessResponse);
+  // Lists the members of a workspace or of a project, with no pages, in name order. A member of
+  // a workspace has its owner role, its roles on the workspace and its roles on the projects of
+  // the workspace. A member of a project has its roles on the project, and its roles on the
+  // workspace if the caller has list_members on the workspace. The instance admins are also in the
+  // list. The caller needs the permission list_members on the object. An unknown object gives
+  // PERMISSION_DENIED, as a refusal does.
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  // Tells what one actor can do on a workspace or on a project, and which role gives it. The
+  // caller needs the permission get_member_access on the object: the readers of a workspace, the
+  // viewers of a project. An unknown object gives PERMISSION_DENIED, as a refusal does. An actor
+  // with no role gets an empty answer.
+  rpc GetMemberAccess(GetMemberAccessRequest) returns (GetMemberAccessResponse);
+  // Lists the permissions of the catalog that the caller holds on an object. A role with a
+  // permission that is not in this list gives ESCALATION in Grant, CreateRole and UpdateRole.
+  // Each caller can ask for itself. An unknown object gives an empty list.
+  rpc ListHeldPermissions(ListHeldPermissionsRequest) returns (ListHeldPermissionsResponse);
   // Tells, for each permission of the request, if the caller has it on an object, as a route
   // check finds it. Each caller can ask for itself. An unknown object gives false for each
   // permission. A name that is not a permission of the definition of the object gives
@@ -96,6 +116,104 @@ message ListAccessResponse {
   repeated AccessEntry entries = 1;
   // How to get the next page.
   scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of ListMembers.
+message ListMembersRequest {
+  // The object: a workspace or a project. Required.
+  ObjectRef object = 1;
+}
+
+// One role of a member.
+message MemberRole {
+  // The kind of the scope of the role: platform, workspace or project.
+  string scope_kind = 1;
+  // The id of the scope.
+  scylla.common.v1.Id scope_id = 2;
+  // The name of a workspace or of a project. Empty for the platform.
+  string scope_name = 3;
+  // The role in Grant and Revoke, or owner for an owner of the workspace, or instance-admin.
+  string role = 4;
+  // The key of the role in RoleService, or owner for an owner of the workspace.
+  string role_key = 5;
+  // The name of the role. The web app can show its own translation for a built-in role.
+  string role_name = 6;
+  // The time of the grant. Not set if the grant is older than this field.
+  google.protobuf.Timestamp granted_at = 7;
+  // The actor that gave the role. Not set if it is not known.
+  scylla.common.v1.Id granted_by = 8;
+}
+
+// A member of a workspace or of a project.
+message Member {
+  // The actor.
+  scylla.common.v1.Id actor_id = 1;
+  // The kind of the actor, for example user or agent.
+  string actor_kind = 2;
+  // The display name of a user, or the name of an app.
+  string display_name = 3;
+  // The handle of a user. Empty if the user has none.
+  string handle = 4;
+  // The roles of the actor.
+  repeated MemberRole roles = 5;
+}
+
+// The output of ListMembers.
+message ListMembersResponse {
+  // The members.
+  repeated Member members = 1;
+}
+
+// The input of GetMemberAccess.
+message GetMemberAccessRequest {
+  // The actor. Required.
+  scylla.common.v1.Id actor_id = 1;
+  // The object: a workspace or a project. Required.
+  ObjectRef object = 2;
+}
+
+// The access that one role gives on an object.
+message AccessSource {
+  // The kind of the scope of the role: platform, workspace or project.
+  string scope_kind = 1;
+  // The id of the scope.
+  scylla.common.v1.Id scope_id = 2;
+  // The name of a workspace or of a project. Empty for the platform.
+  string scope_name = 3;
+  // The key of the role in RoleService, or owner for an owner of the workspace.
+  string role_key = 4;
+  // The name of the role.
+  string role_name = 5;
+}
+
+// One permission of the catalog that an actor has on an object.
+message PermissionAccess {
+  // The id of the permission in the catalog.
+  string permission = 1;
+  // The roles that give it.
+  repeated AccessSource sources = 2;
+}
+
+// The output of GetMemberAccess.
+message GetMemberAccessResponse {
+  // The actor, with each role that the caller can see: on the instance, on the workspace of the
+  // object, and on its projects.
+  Member member = 1;
+  // The permissions that the actor has on the object, in the order of the catalog. A permission
+  // that is not in this list, the actor does not have.
+  repeated PermissionAccess permissions = 2;
+}
+
+// The input of ListHeldPermissions.
+message ListHeldPermissionsRequest {
+  // The object: the platform, a workspace or a project. Required.
+  ObjectRef object = 1;
+}
+
+// The output of ListHeldPermissions.
+message ListHeldPermissionsResponse {
+  // The ids of the permissions of the catalog, in the order of the catalog.
+  repeated string permissions = 1;
 }
 
 // The input of CheckPermissions.
