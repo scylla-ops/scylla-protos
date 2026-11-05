@@ -142,6 +142,8 @@ message MemberRole {
   google.protobuf.Timestamp granted_at = 7;
   // The actor that gave the role. Not set if it is not known.
   scylla.common.v1.Id granted_by = 8;
+  // The key of the identity provider that gave the role, or empty for a role that a person gave.
+  string provider = 9;
 }
 
 // A member of a workspace or of a project.

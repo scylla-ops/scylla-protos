@@ -130,6 +130,8 @@ message Identity {
   string email = 3;
   // The time of the link.
   google.protobuf.Timestamp linked_at = 4;
+  // True if the domain of the email of the user requires this provider: UnlinkIdentity refuses it.
+  bool required = 5;
 }
 
 // The input of UnlinkIdentity.
