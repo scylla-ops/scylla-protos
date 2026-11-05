@@ -54,3 +54,5 @@ repository, with `git subtree split`.
 ## Commits
 
 Use the format `<type>: <description>`. Do not add a body or a footer.
+
+- Each change that a user or a client can see adds a line to `CHANGELOG.md`, under `[Unreleased]`.
