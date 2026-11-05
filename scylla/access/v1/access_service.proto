@@ -32,14 +32,14 @@ service AccessService {
   // Lists the members of a workspace or of a project, with no pages, in name order. A member of
   // a workspace has its owner role, its roles on the workspace and its roles on the projects of
   // the workspace. A member of a project has its roles on the project, and its roles on the
-  // workspace if the caller has list_members on the workspace. The instance admins are also in the
-  // list. The caller needs the permission list_members on the object. An unknown object gives
-  // PERMISSION_DENIED, as a refusal does.
+  // workspace if the caller has list_members on the workspace. A role of the
+  // instance does not make a member, and it is not in the answer. The caller needs the permission
+  // list_members on the object. An unknown object gives PERMISSION_DENIED, as a refusal does.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
   // Tells what one actor can do on a workspace or on a project, and which role gives it. The
   // caller needs the permission get_member_access on the object: the readers of a workspace, the
   // viewers of a project. An unknown object gives PERMISSION_DENIED, as a refusal does. An actor
-  // with no role gets an empty answer.
+  // with no role gets an empty answer. A role of the instance does not count as a role here.
   rpc GetMemberAccess(GetMemberAccessRequest) returns (GetMemberAccessResponse);
   // Lists the permissions of the catalog that the caller holds on an object. A role with a
   // permission that is not in this list gives ESCALATION in Grant, CreateRole and UpdateRole.
@@ -126,13 +126,13 @@ message ListMembersRequest {
 
 // One role of a member.
 message MemberRole {
-  // The kind of the scope of the role: platform, workspace or project.
+  // The kind of the scope of the role: workspace or project.
   string scope_kind = 1;
   // The id of the scope.
   scylla.common.v1.Id scope_id = 2;
-  // The name of a workspace or of a project. Empty for the platform.
+  // The name of a workspace or of a project.
   string scope_name = 3;
-  // The role in Grant and Revoke, or owner for an owner of the workspace, or instance-admin.
+  // The role in Grant and Revoke, or owner for an owner of the workspace.
   string role = 4;
   // The key of the role in RoleService, or owner for an owner of the workspace.
   string role_key = 5;
@@ -174,11 +174,11 @@ message GetMemberAccessRequest {
 
 // The access that one role gives on an object.
 message AccessSource {
-  // The kind of the scope of the role: platform, workspace or project.
+  // The kind of the scope of the role: workspace or project.
   string scope_kind = 1;
   // The id of the scope.
   scylla.common.v1.Id scope_id = 2;
-  // The name of a workspace or of a project. Empty for the platform.
+  // The name of a workspace or of a project.
   string scope_name = 3;
   // The key of the role in RoleService, or owner for an owner of the workspace.
   string role_key = 4;
@@ -196,8 +196,8 @@ message PermissionAccess {
 
 // The output of GetMemberAccess.
 message GetMemberAccessResponse {
-  // The actor, with each role that the caller can see: on the instance, on the workspace of the
-  // object, and on its projects.
+  // The actor, with each role that the caller can see: on the workspace of the object, and on
+  // its projects.
   Member member = 1;
   // The permissions that the actor has on the object, in the order of the catalog. A permission
   // that is not in this list, the actor does not have.
