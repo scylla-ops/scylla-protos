@@ -7,8 +7,8 @@ import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 
 // Gives, takes back and lists the roles of actors on objects, and tells the caller its
-// permissions. The owners of the workspace of an object need no role. Each RPC needs an
-// authenticated actor, else UNAUTHENTICATED.
+// permissions. The role owner of a workspace gives each permission on each object of the
+// workspace. Each RPC needs an authenticated actor, else UNAUTHENTICATED.
 service AccessService {
   // Gives a role on an object to an actor. The caller needs the permission grant on the
   // object. An unknown object gives PERMISSION_DENIED, as a refusal does. An agent gets a role
@@ -18,20 +18,22 @@ service AccessService {
   // level, and the actor is a user: another actor gives FAILED_PRECONDITION with
   // ACTOR_NOT_A_USER. On a project, a user needs a role in the workspace of the project: else
   // FAILED_PRECONDITION with NO_WORKSPACE_ROLE. The caller must hold each permission of the
-  // role: else FAILED_PRECONDITION with ESCALATION.
+  // role: else FAILED_PRECONDITION with ESCALATION. The role owner of a workspace needs the
+  // permission manage_owners, which only its holders and an instance admin have, and it is for
+  // a user only.
   rpc Grant(GrantRequest) returns (GrantResponse);
   // Takes back a role on an object from an actor. The caller needs the permission revoke on
   // the object. On the platform, the last active instance admin stays: FAILED_PRECONDITION with
-  // LAST_ADMIN. When a user loses the last role in a workspace, the user also loses the roles on
-  // the projects of the workspace.
+  // LAST_ADMIN. The role owner of a workspace needs the permission manage_owners, and its last
+  // holder stays: FAILED_PRECONDITION with LAST_OWNER. When a user loses the last role in a
+  // workspace, the user also loses the roles on the projects of the workspace.
   rpc Revoke(RevokeRequest) returns (RevokeResponse);
-  // Lists the access to an object: for a workspace, its owners first, then the roles on the
-  // object. The caller needs the permission list_access: the readers of a workspace, the
+  // Lists the access to an object: for a workspace, the holders of the role owner first, then
+  // the other roles on the object. The caller needs the permission list_access: the readers of a workspace, the
   // viewers of a project. An unknown object gives PERMISSION_DENIED, as a refusal does.
   rpc ListAccess(ListAccessRequest) returns (ListAccessResponse);
   // Lists the members of a workspace or of a project, with no pages, in name order. A member of
-  // a workspace has its owner role, its roles on the workspace and its roles on the projects of
-  // the workspace. A member of a project has its roles on the project, and its roles on the
+  // a workspace has its roles on the workspace and its roles on the projects of the workspace. A member of a project has its roles on the project, and its roles on the
   // workspace if the caller has list_members on the workspace. A role of the
   // instance does not make a member, and it is not in the answer. The caller needs the permission
   // list_members on the object. An unknown object gives PERMISSION_DENIED, as a refusal does.
@@ -96,7 +98,7 @@ message ListAccessRequest {
   scylla.common.v1.PageRequest page = 2;
 }
 
-// One access to an object: an owner of the workspace, or an actor with a role.
+// One access to an object: an actor with a role.
 message AccessEntry {
   // The actor.
   scylla.common.v1.Id actor_id = 1;
@@ -106,13 +108,14 @@ message AccessEntry {
   string display_name = 3;
   // The handle of a user. Empty if the user has none.
   string handle = 4;
-  // The role, for example admin or viewer, or owner for an owner of the workspace.
+  // The role, for example owner, admin or viewer.
   string role = 5;
 }
 
 // The output of ListAccess.
 message ListAccessResponse {
-  // The entries of the page: the owners first, in user id order, then the roles.
+  // The entries of the page: the holders of the role owner first, in user id order, then the
+  // other roles.
   repeated AccessEntry entries = 1;
   // How to get the next page.
   scylla.common.v1.PageResponse page = 2;
@@ -132,9 +135,9 @@ message MemberRole {
   scylla.common.v1.Id scope_id = 2;
   // The name of a workspace or of a project.
   string scope_name = 3;
-  // The role in Grant and Revoke, or owner for an owner of the workspace.
+  // The role in Grant and Revoke.
   string role = 4;
-  // The key of the role in RoleService, or owner for an owner of the workspace.
+  // The key of the role in RoleService.
   string role_key = 5;
   // The name of the role. The web app can show its own translation for a built-in role.
   string role_name = 6;
@@ -180,7 +183,7 @@ message AccessSource {
   scylla.common.v1.Id scope_id = 2;
   // The name of a workspace or of a project.
   string scope_name = 3;
-  // The key of the role in RoleService, or owner for an owner of the workspace.
+  // The key of the role in RoleService.
   string role_key = 4;
   // The name of the role.
   string role_name = 5;
