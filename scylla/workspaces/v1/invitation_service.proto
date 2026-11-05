@@ -13,7 +13,8 @@ service InvitationService {
   // Sends a link that gives a role in a workspace. The caller needs the permission
   // create_invitation on the workspace: its admins. An email with an open invitation in the
   // workspace gives FAILED_PRECONDITION with the reason INVITATION_PENDING: use
-  // ResendInvitation.
+  // ResendInvitation. A role with a permission that the caller does not hold gives
+  // FAILED_PRECONDITION with ESCALATION.
   rpc CreateInvitation(CreateInvitationRequest) returns (CreateInvitationResponse);
   // Accepts an invitation with the token of the link. The caller must be a user with the
   // verified email of the invitation. A link that a revoke or a resend stopped gives the answer
