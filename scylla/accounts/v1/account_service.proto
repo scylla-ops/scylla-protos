@@ -24,6 +24,19 @@ service AccountService {
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
   // Lists the ways to sign in: the identity providers that are on, and the sign-up mode.
   rpc ListSignInMethods(ListSignInMethodsRequest) returns (ListSignInMethodsResponse);
+  // Returns the sign-in with an identity provider that waits in the cookie of this browser. The
+  // callback leaves one when the person must link an account or check a new one. It lives 10
+  // minutes. It needs an allowed web origin. No such sign-in gives NOT_FOUND.
+  rpc GetPendingSignIn(GetPendingSignInRequest) returns (GetPendingSignInResponse);
+  // Links the identity of the sign-in that waits to the account with its email, and opens a
+  // session in a cookie. It works one time, and the owner of the email gets a mail. A wrong
+  // password gives FAILED_PRECONDITION with WRONG_PASSWORD, and counts for the lockout of SignIn.
+  // The session has both methods, and it ends 24 hours after this call.
+  rpc LinkPendingIdentity(LinkPendingIdentityRequest) returns (LinkPendingIdentityResponse);
+  // Makes the account of the sign-in that waits, with no personal workspace, and opens a session
+  // in a cookie. It works one time. A used handle gives FAILED_PRECONDITION with HANDLE_IN_USE,
+  // and the sign-in still waits.
+  rpc CreatePendingAccount(CreatePendingAccountRequest) returns (CreatePendingAccountResponse);
 }
 
 // The input of SignUp.
@@ -93,10 +106,53 @@ message ListSignInMethodsRequest {}
 
 // The output of ListSignInMethods.
 message ListSignInMethodsResponse {
-  // The identity providers that are on, in slug order.
+  // The identity providers of the server, in the order of the page.
   repeated SignInProvider providers = 1;
   // The sign-up mode of the server: open, invite_only or closed.
   string sign_up_mode = 2;
+}
+
+// The input of GetPendingSignIn.
+message GetPendingSignInRequest {}
+
+// The output of GetPendingSignIn.
+message GetPendingSignInResponse {
+  // The step: link, or new_account.
+  string kind = 1;
+  // The key of the provider.
+  string provider = 2;
+  // The name of the provider.
+  string provider_name = 3;
+  // The verified email that the provider gave.
+  string email = 4;
+  // The name that the provider gave, if any.
+  string display_name = 5;
+}
+
+// The input of LinkPendingIdentity.
+message LinkPendingIdentityRequest {
+  // The password of the account.
+  string password = 1;
+}
+
+// The output of LinkPendingIdentity.
+message LinkPendingIdentityResponse {
+  // The page of the web app to go to.
+  string return_to = 1;
+}
+
+// The input of CreatePendingAccount.
+message CreatePendingAccountRequest {
+  // The display name, 1 to 100 characters after trim.
+  string display_name = 1;
+  // The handle, if the person wants one.
+  string handle = 2;
+}
+
+// The output of CreatePendingAccount.
+message CreatePendingAccountResponse {
+  // The page of the web app to go to.
+  string return_to = 1;
 }
 
 // An identity provider on the sign-in page.
@@ -105,6 +161,6 @@ message SignInProvider {
   string slug = 1;
   // The name to show.
   string display_name = 2;
-  // The kind: oidc or github.
+  // The kind: oidc or github. It is also the key.
   string kind = 3;
 }
