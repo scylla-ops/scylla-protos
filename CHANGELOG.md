@@ -20,6 +20,8 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 `ProjectService`, `RoleService`, `SecretService`, `SettingsService`, `TokenService`, `TriggerService`,
 `UserAdminService` and `WorkspaceService`.
 
+`GetCapabilities` gives `version` and `agent_image`, for the commands that install an agent.
+
 **Access and accounts**
 
 - `AccountService`: accounts, sessions, and a sign-in that waits for a person. A sign-in that waits

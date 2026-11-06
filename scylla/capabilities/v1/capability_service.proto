@@ -18,4 +18,9 @@ message GetCapabilitiesResponse {
   // The optional features of this edition. The core features are always present and are not
   // in the list.
   repeated string capabilities = 2;
+  // The version of the server. An agent that has the same version needs no update.
+  string version = 3;
+  // The image of the agent for this server, with its tag, for the command that runs it in a
+  // container.
+  string agent_image = 4;
 }
