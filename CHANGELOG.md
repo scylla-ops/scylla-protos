@@ -16,9 +16,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 ### Added
 
 The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `CapabilityService`,
-`InvitationService`, `JobService`, `PersonalTokenService`, `PipelineService`, `ProfileService`,
-`ProjectService`, `RoleService`, `SecretService`, `SettingsService`, `TokenService`, `TriggerService`,
-`UserAdminService` and `WorkspaceService`.
+`InvitationService`, `JobService`, `NotificationService`, `PersonalTokenService`, `PipelineService`,
+`ProfileService`, `ProjectService`, `RoleService`, `SecretService`, `SettingsService`, `TokenService`,
+`TriggerService`, `UserAdminService` and `WorkspaceService`.
 
 `GetCapabilities` gives `version` and `agent_image`, for the commands that install an agent.
 
@@ -35,8 +35,18 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - Workspaces with slugs and owners, and the management of the invitations.
 - `RoleService`: custom roles, the roles of the instance, the provider of a role, and a required
   provider.
+- `UpdateRole` takes an optional level. The level changes only while the role has no holder.
+- The owner of a workspace is a role of `AccessService`. `AddOwner`, `RemoveOwner` and `ListOwners`
+  are gone from `WorkspaceService`.
 - The members, the effective access of a member, and the holders of a role.
 - The limit of the workspaces in the settings of the instance.
+
+**Notifications**
+
+- `NotificationService`: the inbox of the caller, with a count, a list, read, unread, done and mark
+  all as read.
+- `AcceptInvitation` takes the token of the link or the id of the invitation. `DeclineInvitation`
+  declines an invitation with its id, and tells the person that sent it.
 
 **Projects and pipelines**
 
