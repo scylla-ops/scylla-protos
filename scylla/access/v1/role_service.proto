@@ -26,7 +26,8 @@ service RoleService {
   // INVALID_ARGUMENT. A permission that the caller does not hold gives FAILED_PRECONDITION with
   // ESCALATION. A used name gives FAILED_PRECONDITION with ROLE_NAME_IN_USE.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
-  // Changes the name, the description and the permissions of a custom role. The level, the
+  // Changes the name, the description, the permissions and the level of a custom role. The level
+  // changes only while the role has no holder: else FAILED_PRECONDITION with ROLE_IN_USE. The
   // holders and the owner do not change. The change is live at once for each holder. The
   // permission is update_role, on the owner of the role. An unknown role gives
   // PERMISSION_DENIED. The other errors are those of CreateRole.
@@ -140,7 +141,7 @@ message CreateRoleRequest {
   string name = 1;
   // What the role does, at most 500 characters.
   string description = 2;
-  // The level: platform, workspace or project. It does not change later.
+  // The level: platform, workspace or project. It changes later only while the role has no holder.
   string level = 3;
   // Who can hold the role: people or apps. A role of the platform level is for people only.
   string holder = 4;
@@ -166,6 +167,8 @@ message UpdateRoleRequest {
   string description = 3;
   // The ids of the permissions.
   repeated string permissions = 4;
+  // The level, with the rules of CreateRole. Not set: the level stays.
+  optional string level = 5;
 }
 
 // The output of UpdateRole.
