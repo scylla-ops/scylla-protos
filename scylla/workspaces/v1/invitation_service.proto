@@ -16,10 +16,15 @@ service InvitationService {
   // ResendInvitation. A role with a permission that the caller does not hold gives
   // FAILED_PRECONDITION with ESCALATION.
   rpc CreateInvitation(CreateInvitationRequest) returns (CreateInvitationResponse);
-  // Accepts an invitation with the token of the link. The caller must be a user with the
-  // verified email of the invitation. A link that a revoke or a resend stopped gives the answer
-  // of an unknown link: INVALID_ARGUMENT on the field token.
+  // Accepts an invitation with the token of the link, or with its id from a notification. The
+  // caller must be a user with the verified email of the invitation. A link that a revoke or a
+  // resend stopped gives the answer of an unknown link: INVALID_ARGUMENT on the field token. An
+  // id that is not an open invitation gives NOT_FOUND.
   rpc AcceptInvitation(AcceptInvitationRequest) returns (AcceptInvitationResponse);
+  // Declines an invitation with its id, and deletes it. The inviter gets a notification. The
+  // caller must be a user with the verified email of the invitation. An id that is not an open
+  // invitation gives NOT_FOUND.
+  rpc DeclineInvitation(DeclineInvitationRequest) returns (DeclineInvitationResponse);
   // Lists the open invitations of a workspace, oldest first: the invitations that nobody
   // accepted, expired ones too. The caller needs the permission list_invitations: its admins.
   rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResponse);
@@ -70,8 +75,13 @@ message CreateInvitationResponse {
 
 // The input of AcceptInvitation.
 message AcceptInvitationRequest {
-  // The token of the link in the mail.
-  string token = 1;
+  // The invitation to accept. Not set gives INVALID_ARGUMENT on the field target.
+  oneof target {
+    // The token of the link in the mail.
+    string token = 1;
+    // The id of the invitation, from a notification.
+    scylla.common.v1.Id invitation_id = 2;
+  }
 }
 
 // The output of AcceptInvitation.
@@ -79,6 +89,15 @@ message AcceptInvitationResponse {
   // The workspace that the caller joined.
   scylla.common.v1.Id workspace_id = 1;
 }
+
+// The input of DeclineInvitation.
+message DeclineInvitationRequest {
+  // The invitation to decline. Required.
+  scylla.common.v1.Id invitation_id = 1;
+}
+
+// The output of DeclineInvitation.
+message DeclineInvitationResponse {}
 
 // The input of ListInvitations.
 message ListInvitationsRequest {
