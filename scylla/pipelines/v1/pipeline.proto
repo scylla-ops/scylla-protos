@@ -27,6 +27,23 @@ message Pipeline {
   google.protobuf.Timestamp updated_at = 9;
 }
 
+// The places of the nodes on the canvas of a pipeline.
+message PipelineLayout {
+  // The place of the start node of the canvas. It is not a node of the pipeline.
+  Position start = 1;
+  // The place of each node, by the id of the node, at most 256. A node with no entry gets an
+  // automatic place.
+  map<string, Position> nodes = 2;
+}
+
+// A place on the canvas, in whole pixels of the graph. A value is -1000000 to 1000000.
+message Position {
+  // The horizontal place.
+  sint32 x = 1;
+  // The vertical place.
+  sint32 y = 2;
+}
+
 // A node of a pipeline. The agent starts a node when each node of its needs completed.
 message Node {
   // The id: 1 to 128 lower case letters, digits, dashes or underscores, unique in the pipeline.

@@ -18,7 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `CapabilityService`,
 `InvitationService`, `JobService`, `NotificationService`, `PersonalTokenService`, `PipelineService`,
 `ProfileService`, `ProjectService`, `RoleService`, `SecretService`, `SettingsService`, `TokenService`,
-`TriggerService`, `UserAdminService` and `WorkspaceService`.
+`TriggerService`, `UserAdminService`, `UserStateService` and `WorkspaceService`.
 
 `GetCapabilities` gives `version` and `agent_image`, for the commands that install an agent.
 
@@ -29,6 +29,7 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - Handles, instance admins, and a console of the users.
 - Personal tokens, with a switch on the instance and a switch on each workspace.
 - Permission checks, the list of the access to an object, and the error details for the clients.
+- `UserStateService`: the state of the web app for the caller, as small JSON values with a version.
 
 **Workspaces and roles**
 
@@ -52,6 +53,8 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 
 - The change of a project, and the encrypted secrets of a project.
 - Pipelines, jobs and their run on the agents.
+- The places of the nodes on the canvas: `SavePipelineLayout`, and a `layout` field in `GetPipeline`,
+  `CreatePipeline` and `UpdatePipeline`.
 - Cron and webhook triggers.
 
 **Apps and agents**

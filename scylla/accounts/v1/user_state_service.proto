@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package scylla.accounts.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// The state of the web app for the caller: small values that the server keeps and does not read.
+// Each RPC acts on the caller only, and takes no user. Each RPC needs the token of a user with a
+// session, else UNAUTHENTICATED or PERMISSION_DENIED. An API token gives PERMISSION_DENIED. A value
+// never holds a secret or a token.
+service UserStateService {
+  // Returns each entry of the caller, at most 32.
+  rpc GetUserState(GetUserStateRequest) returns (GetUserStateResponse);
+  // Writes one entry. A key or a value out of its limits gives INVALID_ARGUMENT. A new key after
+  // the 32 keys of the caller gives FAILED_PRECONDITION with the reason USER_STATE_FULL. An
+  // expected version that is not the version of the entry gives ABORTED.
+  rpc PutUserStateEntry(PutUserStateEntryRequest) returns (PutUserStateEntryResponse);
+}
+
+// One value of the state of a user.
+message UserStateEntry {
+  // The key: 1 to 128 lower case letters, digits, dots, colons, dashes or underscores.
+  string key = 1;
+  // The value, as a JSON text of at most 16 KiB.
+  string value_json = 2;
+  // The version: 1 at the first write, and one more at each write.
+  int64 version = 3;
+  // The time of the last write.
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+// The input of GetUserState.
+message GetUserStateRequest {}
+
+// The output of GetUserState.
+message GetUserStateResponse {
+  // Each entry of the caller. There is no page: the number of entries has a low limit.
+  repeated UserStateEntry entries = 1;
+}
+
+// The input of PutUserStateEntry.
+message PutUserStateEntryRequest {
+  // The key.
+  string key = 1;
+  // The value, as a JSON text.
+  string value_json = 2;
+  // Not set: the write always passes. 0: the write passes only if the key has no entry. Another
+  // number: the write passes only if the entry has this version.
+  optional int64 expected_version = 3;
+}
+
+// The output of PutUserStateEntry.
+message PutUserStateEntryResponse {
+  // The entry after the write.
+  UserStateEntry entry = 1;
+}

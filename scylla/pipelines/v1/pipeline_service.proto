@@ -12,14 +12,20 @@ import "scylla/pipelines/v1/pipeline.proto";
 // refusal does.
 service PipelineService {
   // Creates a pipeline in a project: the editors of the project, and the members of its
-  // workspace. A bad node gives INVALID_ARGUMENT with the path of the value, for example
-  // nodes[2].env[0].name.
+  // workspace. A bad node or a bad place gives INVALID_ARGUMENT with the path of the value, for
+  // example nodes[2].env[0].name.
   rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);
-  // Reads one pipeline.
+  // Reads one pipeline with its saved places.
   rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse);
   // Changes the name or the nodes of a pipeline. The request carries the version that the
-  // client read: another version gives ABORTED, and the client reads the pipeline again.
+  // client read: another version gives ABORTED, and the client reads the pipeline again. The
+  // places of the nodes that a change removes go away.
   rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse);
+  // Saves places of a pipeline: the editors of the project, and the members of its workspace. The
+  // request holds only the places that changed, and the other places stay. An id that is not a
+  // node of the pipeline is ignored. The version of the pipeline does not change. A bad place or
+  // a request with no layout gives INVALID_ARGUMENT.
+  rpc SavePipelineLayout(SavePipelineLayoutRequest) returns (SavePipelineLayoutResponse);
   // Deletes a pipeline with its jobs and their logs. The agents stop its running jobs.
   rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
   // Lists the pipelines of a project, oldest first.
@@ -40,6 +46,8 @@ message CreatePipelineRequest {
   string name = 2;
   // The nodes: 1 to 256.
   repeated Node nodes = 3;
+  // The places of the new nodes.
+  PipelineLayout layout = 4;
 }
 
 // The output of CreatePipeline.
@@ -58,6 +66,8 @@ message GetPipelineRequest {
 message GetPipelineResponse {
   // The pipeline.
   Pipeline pipeline = 1;
+  // The saved places. Not set: nothing is saved, and the client makes an automatic layout.
+  PipelineLayout layout = 2;
 }
 
 // The input of UpdatePipeline. A field that is not set does not change.
@@ -70,6 +80,8 @@ message UpdatePipelineRequest {
   optional string name = 3;
   // The new nodes. They replace all the nodes.
   NodeList nodes = 4;
+  // The places of the nodes that this change adds or renames, in the transaction of the change.
+  PipelineLayout layout = 5;
 }
 
 // A list of nodes, so a request can tell "no change" from "these nodes".
@@ -83,6 +95,17 @@ message UpdatePipelineResponse {
   // The changed pipeline, with its new version.
   Pipeline pipeline = 1;
 }
+
+// The input of SavePipelineLayout.
+message SavePipelineLayoutRequest {
+  // The pipeline. Required.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The places that changed. Required.
+  PipelineLayout layout = 2;
+}
+
+// The output of SavePipelineLayout.
+message SavePipelineLayoutResponse {}
 
 // The input of DeletePipeline.
 message DeletePipelineRequest {
