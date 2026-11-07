@@ -53,6 +53,10 @@ message Hello {
   // The jobs that the agent still runs, after a new stream. The server ends its other running
   // jobs on this agent as orphaned, and gives a Cancel for a listed job that must stop.
   repeated scylla.common.v1.Id running_jobs = 2;
+  // True if the agent runs the conditional nodes: a switch, a merge, and a need with a port. The
+  // server gives a job with a switch, a merge or an error need only to such an agent. An agent of
+  // v0.7.0-rc.1 does not send it.
+  bool conditional_nodes = 3;
 }
 
 // A new token of the same agent. The server checks it as at the start of the stream.
@@ -89,7 +93,8 @@ message Renewed {
 }
 
 // A job to run: its nodes with the values of their secrets. The agent orders the nodes itself,
-// starts each ready node at once, and stops the job at the first failure.
+// starts each ready node at once, and stops the job at the first failure that no error need
+// takes.
 message Dispatch {
   // The job.
   scylla.common.v1.Id job_id = 1;
@@ -105,14 +110,19 @@ message Dispatch {
 message DispatchNode {
   // The id of the node.
   string id = 1;
-  // The nodes that must complete first.
+  // The node id of each need, with no port, for an agent of v0.7.0-rc.1. A newer agent reads
+  // links.
   repeated string needs = 2;
-  // What the node runs.
+  // What the node does.
   oneof step {
     // A program and its arguments.
     scylla.pipelines.v1.Exec exec = 3;
     // A script.
     scylla.pipelines.v1.Script script = 4;
+    // A switch. The agent evaluates it with no process.
+    scylla.pipelines.v1.Switch switch = 10;
+    // A merge. The agent completes it with no process.
+    scylla.pipelines.v1.Merge merge = 11;
   }
   // The environment, with the values of the secrets.
   repeated DispatchEnv env = 5;
@@ -124,6 +134,8 @@ message DispatchNode {
   string working_dir = 8;
   // The container. Not set runs the node as a child process.
   scylla.pipelines.v1.Container container = 9;
+  // The needs of the node, with their ports.
+  repeated scylla.pipelines.v1.Need links = 12;
 }
 
 // An environment variable of a node to run.
@@ -156,6 +168,8 @@ message JobEvent {
   optional int32 exit_code = 5;
   // The error of EVENT_KIND_NODE_FAILED and EVENT_KIND_JOB_FAILED, at most 4096 characters.
   string error = 6;
+  // The ports that a switch opened, for EVENT_KIND_NODE_COMPLETED. Empty for another node.
+  repeated string ports = 7;
 }
 
 // What happened to a job or to a node.
@@ -172,7 +186,7 @@ enum EventKind {
   EVENT_KIND_NODE_COMPLETED = 4;
   // A node failed after its last attempt.
   EVENT_KIND_NODE_FAILED = 5;
-  // A node does not run, because a node failed.
+  // A node does not run: a node failed, or a need of the node did not open.
   EVENT_KIND_NODE_SKIPPED = 6;
   // Each node completed or was skipped.
   EVENT_KIND_JOB_COMPLETED = 7;
