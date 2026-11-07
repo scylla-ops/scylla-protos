@@ -27,18 +27,27 @@ message Pipeline {
   google.protobuf.Timestamp updated_at = 9;
 }
 
-// A node of a pipeline. The agent starts a node when each node of its needs completed.
+// A node of a pipeline. The agent waits until each need of a node ended. A run node or a switch
+// then runs if each of its needs is open, and a merge runs if one need or more is open. Else the
+// node is skipped.
 message Node {
   // The id: 1 to 128 lower case letters, digits, dashes or underscores, unique in the pipeline.
   string id = 1;
-  // The ids of the nodes that must complete first. No cycle.
-  repeated string needs = 2;
-  // What the node runs. Required.
+  // The needs: each names another node, with a port or no port. A pair of a node and a port comes
+  // one time only. No cycle.
+  repeated Need needs = 2;
+  // What the node does. Required.
   oneof step {
     // A program and its arguments, with no shell.
     Exec exec = 3;
     // A script for a shell, at most 1 MiB.
     Script script = 4;
+    // A switch: the agent checks its cases and opens one port or more. It has no process, no
+    // retries, no working_dir and no container.
+    Switch switch = 10;
+    // A merge: it joins branches again. It needs one need or more, and it has no env, no
+    // retries, no working_dir and no container.
+    Merge merge = 11;
   }
   // The environment, at most 128 variables with unique names. A name does not start with
   // SCYLLA_.
@@ -52,6 +61,17 @@ message Node {
   string working_dir = 8;
   // The container of the node. Not set runs the node as a child process of the agent.
   Container container = 9;
+}
+
+// A need of a node.
+message Need {
+  // The id of another node of the pipeline.
+  string node = 1;
+  // The port: 1 to 128 lower case letters, digits, dashes or underscores. Empty opens when the
+  // node completed. On a switch, a port of a case or the otherwise port opens when the switch
+  // chose it. On a run node, error opens when the node failed after its last attempt. A merge
+  // has no port.
+  string port = 2;
 }
 
 // A program and its arguments.
@@ -97,3 +117,106 @@ message Container {
   // The image, for example rust:1.97.
   string image = 1;
 }
+
+// A switch: it checks its cases in order and opens the port of the first case that matches, or of
+// each case that matches.
+message Switch {
+  // The cases: 1 to 16, with unique ports.
+  repeated Case cases = 1;
+  // The port to open when no case matches. Empty opens no port. It is not a port of a case.
+  string otherwise = 2;
+  // True opens the port of each case that matches. False opens the port of the first case only.
+  bool all_matches = 3;
+}
+
+// A case of a switch.
+message Case {
+  // The port that the case opens: 1 to 128 lower case letters, digits, dashes or underscores.
+  string port = 1;
+  // How the rules combine. Not set gives COMBINATOR_ALL.
+  Combinator combinator = 2;
+  // The rules: 1 to 32.
+  repeated Rule rules = 3;
+}
+
+// How the rules of a case combine.
+enum Combinator {
+  // COMBINATOR_ALL.
+  COMBINATOR_UNSPECIFIED = 0;
+  // The case matches when each rule matches.
+  COMBINATOR_ALL = 1;
+  // The case matches when one rule or more matches.
+  COMBINATOR_ANY = 2;
+}
+
+// A rule of a case: a test of a left value against a right value.
+message Rule {
+  // The left value. Required.
+  Operand left = 1;
+  // The test. Required.
+  Test test = 2;
+  // The right value. Required, except for TEST_EMPTY and TEST_NOT_EMPTY, which refuse it.
+  Operand right = 3;
+}
+
+// A value of a rule. A literal of a number test must be a number.
+message Operand {
+  // The value. Required.
+  oneof value {
+    // A text, at most 64 KiB.
+    string literal = 1;
+    // The name of a variable that the switch node gets: its env, the SCYLLA_ variables of the
+    // agent, and SCYLLA_ERROR. A missing variable gives an empty text.
+    string var = 2;
+    // A key of the output file of a node. A missing file, a missing key, or a node that did not
+    // run gives an empty text.
+    NodeOutput output = 3;
+  }
+}
+
+// A key of the output file of a node. A step writes KEY=value lines to the file in
+// $SCYLLA_OUTPUT.
+message NodeOutput {
+  // The id of a run node that the switch reaches through its needs.
+  string node = 1;
+  // The key: a letter or an underscore, then letters, digits or underscores.
+  string key = 2;
+}
+
+// The test of a rule. A text test compares the texts as they are. A number test reads each
+// trimmed text as a finite number, and a text that is not a number fails the switch.
+enum Test {
+  // Not used.
+  TEST_UNSPECIFIED = 0;
+  // The two texts are equal.
+  TEST_EQUALS = 1;
+  // The two texts are not equal.
+  TEST_NOT_EQUALS = 2;
+  // The left text contains the right text.
+  TEST_CONTAINS = 3;
+  // The left text does not contain the right text.
+  TEST_NOT_CONTAINS = 4;
+  // The left text starts with the right text.
+  TEST_STARTS_WITH = 5;
+  // The left text ends with the right text.
+  TEST_ENDS_WITH = 6;
+  // The left text is empty. No right value.
+  TEST_EMPTY = 7;
+  // The left text is not empty. No right value.
+  TEST_NOT_EMPTY = 8;
+  // The two numbers are equal.
+  TEST_NUMBER_EQ = 9;
+  // The two numbers are not equal.
+  TEST_NUMBER_NE = 10;
+  // The left number is greater than the right number.
+  TEST_NUMBER_GT = 11;
+  // The left number is greater than or equal to the right number.
+  TEST_NUMBER_GE = 12;
+  // The left number is less than the right number.
+  TEST_NUMBER_LT = 13;
+  // The left number is less than or equal to the right number.
+  TEST_NUMBER_LE = 14;
+}
+
+// A merge: it has no fields.
+message Merge {}

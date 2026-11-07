@@ -52,6 +52,11 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 
 - The change of a project, and the encrypted secrets of a project.
 - Pipelines, jobs and their run on the agents.
+- Conditional nodes: a `Need` has a node and a port, a `Switch` opens the ports of its cases, a
+  `Merge` joins branches, and the port `error` of a run node takes its failure. `NodeRun.ports`
+  and `JobEvent.ports` give the ports that a switch opened. In `agents/v1` the change is additive:
+  `DispatchNode.needs` keeps the node ids for an agent of v0.7.0-rc.1, `DispatchNode.links` has
+  the needs with their ports, and `Hello.conditional_nodes` tells that an agent runs them.
 - Cron and webhook triggers.
 
 **Apps and agents**
