@@ -12,8 +12,9 @@ service UserStateService {
   // Returns each entry of the caller, at most 32.
   rpc GetUserState(GetUserStateRequest) returns (GetUserStateResponse);
   // Writes one entry. A key or a value out of its limits gives INVALID_ARGUMENT. A new key after
-  // the 32 keys of the caller gives FAILED_PRECONDITION with the reason USER_STATE_FULL. An
-  // expected version that is not the version of the entry gives ABORTED.
+  // the 32 keys of the caller, or a write that puts the entries of the caller above 64 KiB in all,
+  // gives FAILED_PRECONDITION with the reason USER_STATE_FULL. An expected version that is not the
+  // version of the entry gives ABORTED.
   rpc PutUserStateEntry(PutUserStateEntryRequest) returns (PutUserStateEntryResponse);
 }
 
