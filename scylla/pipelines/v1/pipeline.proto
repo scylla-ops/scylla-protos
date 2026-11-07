@@ -140,7 +140,8 @@ message Container {
 message Switch {
   // The cases: 1 to 16, with unique ports.
   repeated Case cases = 1;
-  // The port to open when no case matches. Empty opens no port. It is not a port of a case.
+  // The port to open when no case matches. Empty opens no port. It is not a port of a case, and
+  // not error.
   string otherwise = 2;
   // True opens the port of each case that matches. False opens the port of the first case only.
   bool all_matches = 3;
@@ -148,7 +149,8 @@ message Switch {
 
 // A case of a switch.
 message Case {
-  // The port that the case opens: 1 to 128 lower case letters, digits, dashes or underscores.
+  // The port that the case opens: 1 to 128 lower case letters, digits, dashes or underscores. Not
+  // error: that name is the port of a failure of a node that runs a step.
   string port = 1;
   // How the rules combine. Not set gives COMBINATOR_ALL.
   Combinator combinator = 2;
