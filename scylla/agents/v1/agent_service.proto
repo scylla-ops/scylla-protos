@@ -21,8 +21,10 @@ service AgentService {
   // runner in its workspace gets the pending jobs of the workspace, while it runs fewer jobs
   // than its capacity. An event or a log of a job that the agent must not run gives a Cancel.
   rpc OpenStream(stream OpenStreamRequest) returns (stream OpenStreamResponse);
-  // Returns the job stats of an agent. The route permission is get_agent_stats on the App: the
-  // readers of its workspace. An App with no job in the 30 days gets stats with each count at 0.
+  // Returns the job stats of an agent for a period of days, by default the last 30 days. The
+  // route permission is get_agent_stats on the App: the readers of its workspace. An App with no
+  // job in the period gets stats with each count at 0. A period that ends before its start, after
+  // the server moved its days, gets INVALID_ARGUMENT.
   rpc GetAgentStats(GetAgentStatsRequest) returns (GetAgentStatsResponse);
   // Returns the job stats of the agents of a workspace: one entry for each agent with a job
   // created in the 30 days, in the order of their ids. The route permission is list_agent_stats
@@ -194,6 +196,13 @@ message LogBatch {
 message GetAgentStatsRequest {
   // The App of the agent.
   scylla.common.v1.Id agent_id = 1;
+  // The first day of the period: the server uses the UTC day of this time. Not set: 29 days
+  // before the last day. The server moves an earlier day to the day of the creation of the agent,
+  // and to 365 days before the last day.
+  google.protobuf.Timestamp from = 2;
+  // The last day of the period: the server uses the UTC day of this time. Not set: today. The
+  // server moves a later day to today.
+  google.protobuf.Timestamp to = 3;
 }
 
 // The response of GetAgentStats.
