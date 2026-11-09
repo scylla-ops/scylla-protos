@@ -65,6 +65,8 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - The number of jobs that each agent holds, and its job stats.
 - `GetAgentStatsRequest` takes an optional period (`from`, `to`). With no period, the stats stay the
   last 30 days.
+- `Member` and `RoleHolderEntry` have `runner`. It is true for an app that runs jobs (an agent), so
+  a client can tell an agent from another app.
 
 ### Fixed
 
