@@ -63,6 +63,8 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - A disable and an enable of an App. Keys have names, and record their last use.
 - The API tokens of the Apps and their limits, and the CI identities.
 - The number of jobs that each agent holds, and its job stats.
+- `GetAgentStatsRequest` takes an optional period (`from`, `to`). With no period, the stats stay the
+  last 30 days.
 
 ### Fixed
 
