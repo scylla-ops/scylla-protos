@@ -189,7 +189,7 @@ message ListRoleHoldersRequest {
 message RoleHolderEntry {
   // The actor.
   scylla.common.v1.Id actor_id = 1;
-  // The kind of the actor, for example user or agent.
+  // The kind of the actor, for example user or app.
   string actor_kind = 2;
   // The display name of a user, or the name of an app.
   string display_name = 3;
@@ -203,6 +203,8 @@ message RoleHolderEntry {
   string scope_name = 7;
   // The time of the grant. Not set if the grant is older than this field.
   google.protobuf.Timestamp granted_at = 8;
+  // True for an app that runs jobs: an agent. False for a user and for another app.
+  bool runner = 9;
 }
 
 // The output of ListRoleHolders.
