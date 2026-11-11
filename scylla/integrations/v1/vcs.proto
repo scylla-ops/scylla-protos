@@ -138,7 +138,8 @@ message VcsProviderInfo {
   // True when an admin of the workspace can make a connection now.
   bool available = 2;
   // Why the provider is not available, as a stable code: APP_MISSING (the instance has no
-  // GitHub App). Empty when the provider is available.
+  // GitHub App) or SECRET_KEY_MISSING (the server has no key to seal a GitLab token). Empty when
+  // the provider is available.
   string unavailable_reason = 3;
   // The address of the provider, for example https://github.com.
   string web_url = 4;

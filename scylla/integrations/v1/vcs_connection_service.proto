@@ -10,7 +10,9 @@ import "scylla/integrations/v1/vcs.proto";
 // Connects a workspace to GitHub and GitLab, and lists the repositories of a connection. Each
 // RPC needs an authenticated actor, else UNAUTHENTICATED. An unknown connection gives
 // PERMISSION_DENIED, as a refusal does. A token that a request sends never comes back in an
-// answer or in a log.
+// answer or in a log. A call to the provider that fails gives FAILED_PRECONDITION with the reason
+// PROVIDER_REFUSED (the provider refused the credentials of the connection) or
+// PROVIDER_UNAVAILABLE (the provider failed or limits the calls: try again later).
 service VcsConnectionService {
   // Lists the Git providers, and tells if the workspace can connect each one. The route
   // permission is get_vcs_providers: the readers of the workspace.
@@ -24,26 +26,29 @@ service VcsConnectionService {
   // Starts the install of the GitHub App for a workspace. It gives the install address with a
   // random state: one use, 10 minutes, for this workspace and this caller only. An instance with
   // no GitHub App gives FAILED_PRECONDITION with the reason APP_MISSING. The route permission is
-  // start_github_install: the admins of the workspace.
+  // start_git_hub_install: the admins of the workspace.
   rpc StartGitHubInstall(StartGitHubInstallRequest) returns (StartGitHubInstallResponse);
   // Makes the connection after the install on GitHub, or refreshes it after a change of the
   // install, with the values of the redirect of GitHub. The server exchanges the code for a token
   // of the user, and the user must see the installation on GitHub. The route permission is
-  // complete_github_install on the workspace of the state: its admins. A refusal is
-  // FAILED_PRECONDITION with the reason STATE_EXPIRED (an unknown, used or old state, or the state
-  // of another user), INSTALLATION_NOT_VISIBLE, INSTALL_CANCELLED or INSTALL_PENDING_APPROVAL (an
-  // owner of the organization must approve the request on GitHub).
+  // complete_git_hub_install on the workspace of the state: its admins. A refusal is
+  // FAILED_PRECONDITION with the reason STATE_EXPIRED (an unknown, used or old state, the state
+  // of another user, or a code that GitHub refuses), INSTALLATION_NOT_VISIBLE, INSTALL_CANCELLED
+  // or INSTALL_PENDING_APPROVAL (an owner of the organization must approve the request on
+  // GitHub).
   rpc CompleteGitHubInstall(CompleteGitHubInstallRequest) returns (CompleteGitHubInstallResponse);
   // Connects GitLab.com with the token of a service account. The server reads the scopes, the
   // expiry and the account of the token, then seals the token. A token that GitLab refuses gives
   // FAILED_PRECONDITION with the reason TOKEN_INVALID, and a token with no scope api gives the
   // reason TOKEN_SCOPE_MISSING. A server with no key of the secrets gives FAILED_PRECONDITION with
-  // the reason SECRET_KEY_MISSING. The route permission is connect_gitlab: the admins of the
-  // workspace.
+  // the reason SECRET_KEY_MISSING. An account that has a connection in the workspace gives
+  // FAILED_PRECONDITION with the reason CONNECTION_EXISTS: replace its token. The route permission
+  // is connect_git_lab: the admins of the workspace.
   rpc ConnectGitLab(ConnectGitLabRequest) returns (ConnectGitLabResponse);
-  // Replaces the token of a GitLab connection, with the checks of ConnectGitLab. A token of
-  // another account gives FAILED_PRECONDITION with the reason ACCOUNT_CHANGED. The route
-  // permission is replace_gitlab_token: the admins of the workspace.
+  // Replaces the token of a GitLab connection, with the checks of ConnectGitLab, and makes the
+  // connection active. A token of another account gives FAILED_PRECONDITION with the reason
+  // ACCOUNT_CHANGED, and a GitHub connection gives INVALID_ARGUMENT. The route permission is
+  // replace_git_lab_token: the admins of the workspace.
   rpc ReplaceGitLabToken(ReplaceGitLabTokenRequest) returns (ReplaceGitLabTokenResponse);
   // Deletes a connection with the links of its repositories. The server first deletes the
   // webhooks that it made on GitLab, when it can. The App stays installed on GitHub. The jobs

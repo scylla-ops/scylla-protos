@@ -18,13 +18,13 @@ service VcsAppService {
   // Starts the creation of the GitHub App. It gives the manifest of the App and the page of
   // GitHub where the browser posts it, with a random state: one use, one hour. An instance with
   // an App gives FAILED_PRECONDITION with the reason APP_EXISTS. The route permission is
-  // start_github_manifest.
+  // start_git_hub_manifest.
   rpc StartGitHubManifest(StartGitHubManifestRequest) returns (StartGitHubManifestResponse);
   // Finishes the creation with the code of the redirect of GitHub. The server gets the id, the
   // key and the secrets of the App from GitHub, and seals them. An unknown, used or old state
   // gives FAILED_PRECONDITION with the reason STATE_EXPIRED. A server with no key of the secrets
   // gives FAILED_PRECONDITION with the reason SECRET_KEY_MISSING. The route permission is
-  // complete_github_manifest.
+  // complete_git_hub_manifest.
   rpc CompleteGitHubManifest(CompleteGitHubManifestRequest) returns (CompleteGitHubManifestResponse);
   // Removes the GitHub App of the instance. Each GitHub connection becomes disconnected. The App
   // stays on GitHub: delete it there. The route permission is delete_vcs_app.
