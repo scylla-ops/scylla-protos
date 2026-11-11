@@ -1,0 +1,192 @@
+syntax = "proto3";
+
+package scylla.integrations.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/common/v1/page.proto";
+import "scylla/integrations/v1/vcs.proto";
+
+// Connects a workspace to GitHub and GitLab, and lists the repositories of a connection. Each
+// RPC needs an authenticated actor, else UNAUTHENTICATED. An unknown connection gives
+// PERMISSION_DENIED, as a refusal does. A token that a request sends never comes back in an
+// answer or in a log.
+service VcsConnectionService {
+  // Lists the Git providers, and tells if the workspace can connect each one. The route
+  // permission is get_vcs_providers: the readers of the workspace.
+  rpc GetVcsProviders(GetVcsProvidersRequest) returns (GetVcsProvidersResponse);
+  // Lists the connections of a workspace, oldest first. The route permission is
+  // list_vcs_connections: the readers of the workspace.
+  rpc ListVcsConnections(ListVcsConnectionsRequest) returns (ListVcsConnectionsResponse);
+  // Reads one connection. The route permission is get_vcs_connection: the readers of the
+  // workspace.
+  rpc GetVcsConnection(GetVcsConnectionRequest) returns (GetVcsConnectionResponse);
+  // Starts the install of the GitHub App for a workspace. It gives the install address with a
+  // random state: one use, 10 minutes, for this workspace and this caller only. An instance with
+  // no GitHub App gives FAILED_PRECONDITION with the reason APP_MISSING. The route permission is
+  // start_github_install: the admins of the workspace.
+  rpc StartGitHubInstall(StartGitHubInstallRequest) returns (StartGitHubInstallResponse);
+  // Makes the connection after the install on GitHub, or refreshes it after a change of the
+  // install, with the values of the redirect of GitHub. The server exchanges the code for a token
+  // of the user, and the user must see the installation on GitHub. The route permission is
+  // complete_github_install on the workspace of the state: its admins. A refusal is
+  // FAILED_PRECONDITION with the reason STATE_EXPIRED (an unknown, used or old state, or the state
+  // of another user), INSTALLATION_NOT_VISIBLE, INSTALL_CANCELLED or INSTALL_PENDING_APPROVAL (an
+  // owner of the organization must approve the request on GitHub).
+  rpc CompleteGitHubInstall(CompleteGitHubInstallRequest) returns (CompleteGitHubInstallResponse);
+  // Connects GitLab.com with the token of a service account. The server reads the scopes, the
+  // expiry and the account of the token, then seals the token. A token that GitLab refuses gives
+  // FAILED_PRECONDITION with the reason TOKEN_INVALID, and a token with no scope api gives the
+  // reason TOKEN_SCOPE_MISSING. A server with no key of the secrets gives FAILED_PRECONDITION with
+  // the reason SECRET_KEY_MISSING. The route permission is connect_gitlab: the admins of the
+  // workspace.
+  rpc ConnectGitLab(ConnectGitLabRequest) returns (ConnectGitLabResponse);
+  // Replaces the token of a GitLab connection, with the checks of ConnectGitLab. A token of
+  // another account gives FAILED_PRECONDITION with the reason ACCOUNT_CHANGED. The route
+  // permission is replace_gitlab_token: the admins of the workspace.
+  rpc ReplaceGitLabToken(ReplaceGitLabTokenRequest) returns (ReplaceGitLabTokenResponse);
+  // Deletes a connection with the links of its repositories. The server first deletes the
+  // webhooks that it made on GitLab, when it can. The App stays installed on GitHub. The jobs
+  // stay. The route permission is delete_vcs_connection: the admins of the workspace.
+  rpc DeleteVcsConnection(DeleteVcsConnectionRequest) returns (DeleteVcsConnectionResponse);
+  // Lists the repositories that a connection can see, for the link of a project, in the order of
+  // the provider. On GitLab, only the projects where the service account is Developer or more.
+  // A connection of another workspace gives PERMISSION_DENIED. The route permission is
+  // list_connection_repositories on the project: its editors.
+  rpc ListConnectionRepositories(ListConnectionRepositoriesRequest) returns (ListConnectionRepositoriesResponse);
+}
+
+// The input of GetVcsProviders.
+message GetVcsProvidersRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+}
+
+// The output of GetVcsProviders.
+message GetVcsProvidersResponse {
+  // GitHub, then GitLab.
+  repeated VcsProviderInfo providers = 1;
+}
+
+// The input of ListVcsConnections.
+message ListVcsConnectionsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 2;
+}
+
+// The output of ListVcsConnections.
+message ListVcsConnectionsResponse {
+  // The connections of the page, oldest first.
+  repeated VcsConnection connections = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of GetVcsConnection.
+message GetVcsConnectionRequest {
+  // The connection. Required.
+  scylla.common.v1.Id connection_id = 1;
+}
+
+// The output of GetVcsConnection.
+message GetVcsConnectionResponse {
+  // The connection.
+  VcsConnection connection = 1;
+}
+
+// The input of StartGitHubInstall.
+message StartGitHubInstallRequest {
+  // The workspace of the new connection. Required.
+  scylla.common.v1.Id workspace_id = 1;
+}
+
+// The output of StartGitHubInstall.
+message StartGitHubInstallResponse {
+  // The install page of the App on GitHub, with the state. The browser goes there.
+  string install_url = 1;
+  // The end of the validity of the state.
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// The input of CompleteGitHubInstall: the values of the redirect of GitHub.
+message CompleteGitHubInstallRequest {
+  // The state of StartGitHubInstall. Required.
+  string state = 1;
+  // The id of the installation. Empty when the install was cancelled.
+  string installation_id = 2;
+  // The code of the authorization of the user. Required for an install.
+  string code = 3;
+  // What GitHub did: install, update or request.
+  string setup_action = 4;
+}
+
+// The output of CompleteGitHubInstall.
+message CompleteGitHubInstallResponse {
+  // The new or refreshed connection.
+  VcsConnection connection = 1;
+}
+
+// The input of ConnectGitLab.
+message ConnectGitLabRequest {
+  // The workspace of the new connection. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The personal access token of the service account, with the scope api. Required.
+  string token = 2;
+}
+
+// The output of ConnectGitLab.
+message ConnectGitLabResponse {
+  // The new connection.
+  VcsConnection connection = 1;
+  // The warnings of the check, as stable codes: NOT_A_SERVICE_ACCOUNT, TOKEN_EXPIRES_SOON (in
+  // less than 14 days) and ROLE_DEVELOPER (Scylla can report, but cannot make the webhook or
+  // block a merge).
+  repeated string warnings = 2;
+}
+
+// The input of ReplaceGitLabToken.
+message ReplaceGitLabTokenRequest {
+  // The connection. Required.
+  scylla.common.v1.Id connection_id = 1;
+  // The new personal access token of the same account. Required.
+  string token = 2;
+}
+
+// The output of ReplaceGitLabToken.
+message ReplaceGitLabTokenResponse {
+  // The connection with the new token.
+  VcsConnection connection = 1;
+  // The warnings of the check, as in ConnectGitLabResponse.
+  repeated string warnings = 2;
+}
+
+// The input of DeleteVcsConnection.
+message DeleteVcsConnectionRequest {
+  // The connection. Required.
+  scylla.common.v1.Id connection_id = 1;
+}
+
+// The output of DeleteVcsConnection.
+message DeleteVcsConnectionResponse {}
+
+// The input of ListConnectionRepositories.
+message ListConnectionRepositoriesRequest {
+  // The project to link. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The connection, of the workspace of the project. Required.
+  scylla.common.v1.Id connection_id = 2;
+  // Only the repositories with this text in their full name. Empty gives all.
+  string search = 3;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 4;
+}
+
+// The output of ListConnectionRepositories.
+message ListConnectionRepositoriesResponse {
+  // The repositories of the page.
+  repeated Repository repositories = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}

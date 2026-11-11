@@ -14,11 +14,13 @@ import "scylla/pipelines/v1/trigger.proto";
 service TriggerService {
   // Creates a trigger of a pipeline. A webhook trigger gives its secret one time: the server
   // keeps it encrypted, and a server with no key gives FAILED_PRECONDITION with the reason
-  // SECRET_KEY_MISSING.
+  // SECRET_KEY_MISSING. A kind that this server does not run gives INVALID_ARGUMENT on the field
+  // kind, with the reason TRIGGER_KIND_NOT_SUPPORTED.
   rpc CreateTrigger(CreateTriggerRequest) returns (CreateTriggerResponse);
   // Reads one trigger. The secret of a webhook is never in it.
   rpc GetTrigger(GetTriggerRequest) returns (GetTriggerResponse);
-  // Changes the name, the schedule of a cron trigger, or the inputs. The kind does not change.
+  // Changes the name, the schedule of a cron trigger, the rules of a push, pull request or tag
+  // trigger, or the inputs. The kind does not change.
   rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse);
   // Deletes a trigger. Its jobs stay.
   rpc DeleteTrigger(DeleteTriggerRequest) returns (DeleteTriggerResponse);
@@ -42,6 +44,12 @@ message CreateTriggerRequest {
     Cron cron = 3;
     // A webhook.
     Webhook webhook = 4;
+    // A push to a branch of the linked repository.
+    Push push = 6;
+    // A pull request of the linked repository.
+    PullRequest pull_request = 7;
+    // A push of a tag of the linked repository.
+    Tag tag = 8;
   }
   // The inputs, at most 128 with unique names. A JSON pointer only for a webhook.
   repeated TriggerInput inputs = 5;
@@ -78,6 +86,16 @@ message UpdateTriggerRequest {
   optional string schedule = 3;
   // The new inputs. They replace all the inputs.
   TriggerInputList inputs = 4;
+  // The new rules of a push, pull request or tag trigger. They replace all the rules. Rules of
+  // another kind than the kind of the trigger give INVALID_ARGUMENT.
+  oneof rules {
+    // The rules of a push trigger.
+    Push push = 5;
+    // The rules of a pull request trigger.
+    PullRequest pull_request = 6;
+    // The rules of a tag trigger.
+    Tag tag = 7;
+  }
 }
 
 // A list of inputs, so a request can tell "no change" from "these inputs".

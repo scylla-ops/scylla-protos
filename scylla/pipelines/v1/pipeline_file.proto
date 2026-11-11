@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "scylla/common/v1/id.proto";
+import "scylla/pipelines/v1/pipeline.proto";
+import "scylla/pipelines/v1/source.proto";
+import "scylla/pipelines/v1/trigger.proto";
+
+// A pipeline file, as the server read it: from a commit of the linked repository, or from a
+// client that checks a file before a commit.
+message PipelineFile {
+  // The key: pipeline for .scylla/pipeline.<ext>, else the name of the file with no extension.
+  string key = 1;
+  // Where the file is. The commit and the blob are empty for a file of a client.
+  PipelineFileRef file = 2;
+  // The format, from the extension of the file.
+  PipelineFileFormat format = 3;
+  // The text of the file. Empty in a list of files.
+  string content = 4;
+  // The name of the pipeline: the name in the file, else the key.
+  string name = 5;
+  // The nodes. Empty when the file has an error.
+  repeated Node nodes = 6;
+  // The checkout settings of the file. Not set gives the default.
+  CheckoutSettings checkout = 7;
+  // The rules of on.push. Not set when the file has none.
+  Push push = 8;
+  // The rules of on.pull_request. Not set when the file has none.
+  PullRequest pull_request = 9;
+  // The rules of on.tag. Not set when the file has none.
+  Tag tag = 10;
+  // The errors and the warnings of the file.
+  repeated FileError errors = 11;
+  // The pipeline of the project with this key. Not set when the project has none.
+  scylla.common.v1.Id pipeline_id = 12;
+}
+
+// The format of a pipeline file.
+enum PipelineFileFormat {
+  // Not used.
+  PIPELINE_FILE_FORMAT_UNSPECIFIED = 0;
+  // TOML, with the extension .toml.
+  PIPELINE_FILE_FORMAT_TOML = 1;
+  // YAML, with the extension .yaml or .yml.
+  PIPELINE_FILE_FORMAT_YAML = 2;
+  // JSON, with the extension .json.
+  PIPELINE_FILE_FORMAT_JSON = 3;
+}

@@ -4,11 +4,14 @@ package scylla.pipelines.v1;
 
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
+import "scylla/integrations/v1/vcs.proto";
 import "scylla/pipelines/v1/job.proto";
 import "scylla/pipelines/v1/pipeline.proto";
+import "scylla/pipelines/v1/pipeline_file.proto";
+import "scylla/pipelines/v1/source.proto";
 
-// Creates, reads, changes, lists, deletes and runs the pipelines of a project. Each RPC needs an
-// authenticated actor, else UNAUTHENTICATED. An unknown pipeline gives PERMISSION_DENIED, as a
+// Creates, reads, changes, lists, deletes and runs the pipelines of a project, and reads the
+// pipeline files of its repository. Each RPC needs an authenticated actor, else UNAUTHENTICATED. An unknown pipeline gives PERMISSION_DENIED, as a
 // refusal does.
 service PipelineService {
   // Creates a pipeline in a project: the editors of the project, and the members of its
@@ -36,6 +39,27 @@ service PipelineService {
   // Starts a job of a pipeline: a pending job with a snapshot of the nodes. A secret that a node
   // names and that the project does not have gives NOT_FOUND.
   rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse);
+  // Reads a pipeline file that a client sends, and gives its pipeline and its errors. Nothing
+  // changes. A file larger than 1 MiB gives INVALID_ARGUMENT. The route permission is
+  // validate_pipeline_file: the readers of the project.
+  rpc ValidatePipelineFile(ValidatePipelineFileRequest) returns (ValidatePipelineFileResponse);
+  // Writes a pipeline as a file in TOML, YAML or JSON, for a move to the repository files. The
+  // route permission is export_pipeline: the readers of the project.
+  rpc ExportPipeline(ExportPipelineRequest) returns (ExportPipelineResponse);
+  // Reads a file pipeline at a commit of the linked repository: its file, its nodes and its
+  // errors. An editor pipeline gives FAILED_PRECONDITION with the reason NOT_A_FILE_PIPELINE. The
+  // route permission is get_file_pipeline: the readers of the project.
+  rpc GetFilePipeline(GetFilePipelineRequest) returns (GetFilePipelineResponse);
+  // Lists the pipeline files of the linked repository at a commit, with the errors of each file.
+  // A project with no link gives FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. The
+  // route permission is list_pipeline_files: the readers of the project.
+  rpc ListPipelineFiles(ListPipelineFilesRequest) returns (ListPipelineFilesResponse);
+  // Sets where the pipelines of a project come from. To the files: the project needs a linked
+  // repository, else FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK; its editor pipelines
+  // become archived, and the files of the default branch become pipelines. To the editor: the
+  // archived pipelines come back, and the file pipelines are hidden. The jobs stay. The route
+  // permission is set_pipeline_source: the editors of the project.
+  rpc SetPipelineSource(SetPipelineSourceRequest) returns (SetPipelineSourceResponse);
 }
 
 // The input of CreatePipeline.
@@ -48,6 +72,8 @@ message CreatePipelineRequest {
   repeated Node nodes = 3;
   // The places of the new nodes.
   PipelineLayout layout = 4;
+  // How the agent gets the code before the first node. Not set gives the default.
+  CheckoutSettings checkout = 5;
 }
 
 // The output of CreatePipeline.
@@ -82,6 +108,8 @@ message UpdatePipelineRequest {
   NodeList nodes = 4;
   // The places of the nodes that this change adds or renames, in the transaction of the change.
   PipelineLayout layout = 5;
+  // The new checkout settings.
+  CheckoutSettings checkout = 6;
 }
 
 // A list of nodes, so a request can tell "no change" from "these nodes".
@@ -152,6 +180,9 @@ message ListWorkspacePipelinesResponse {
 message RunPipelineRequest {
   // The pipeline. Required.
   scylla.common.v1.Id pipeline_id = 1;
+  // The commit to run, in the linked repository. Not set: an editor pipeline runs with no
+  // source, and a file pipeline runs at the head of the default branch.
+  GitRef ref = 2;
 }
 
 // The output of RunPipeline.
@@ -159,3 +190,79 @@ message RunPipelineResponse {
   // The new pending job.
   Job job = 1;
 }
+
+// The input of ValidatePipelineFile.
+message ValidatePipelineFileRequest {
+  // The project. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The path of the file in the repository, for example .scylla/pipelines/build.toml. Its
+  // extension gives the format, and its name gives the key. Required.
+  string path = 2;
+  // The text of the file, at most 1 MiB.
+  string content = 3;
+}
+
+// The output of ValidatePipelineFile.
+message ValidatePipelineFileResponse {
+  // The file as the server read it, with its errors.
+  PipelineFile file = 1;
+}
+
+// The input of ExportPipeline.
+message ExportPipelineRequest {
+  // The pipeline. Required.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The format. Required.
+  PipelineFileFormat format = 2;
+}
+
+// The output of ExportPipeline.
+message ExportPipelineResponse {
+  // The text of the file.
+  string content = 1;
+  // The path to use in the repository, for example .scylla/pipelines/build.toml.
+  string path = 2;
+}
+
+// The input of GetFilePipeline.
+message GetFilePipelineRequest {
+  // The file pipeline. Required.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The commit. Not set gives the head of the default branch.
+  GitRef ref = 2;
+}
+
+// The output of GetFilePipeline.
+message GetFilePipelineResponse {
+  // The file of the pipeline at the commit.
+  PipelineFile file = 1;
+}
+
+// The input of ListPipelineFiles.
+message ListPipelineFilesRequest {
+  // The project. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The commit. Not set gives the head of the default branch.
+  GitRef ref = 2;
+}
+
+// The output of ListPipelineFiles.
+message ListPipelineFilesResponse {
+  // The files, in the order of their keys, with no text.
+  repeated PipelineFile files = 1;
+  // The errors of the lookup that are not about one file, for example two files for one key.
+  repeated FileError errors = 2;
+  // The commit that the server read.
+  string commit_sha = 3;
+}
+
+// The input of SetPipelineSource.
+message SetPipelineSourceRequest {
+  // The project. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The new source. Required.
+  scylla.integrations.v1.PipelineSource source = 2;
+}
+
+// The output of SetPipelineSource.
+message SetPipelineSourceResponse {}

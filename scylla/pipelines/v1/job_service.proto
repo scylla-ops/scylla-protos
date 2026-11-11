@@ -5,8 +5,9 @@ package scylla.pipelines.v1;
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 import "scylla/pipelines/v1/job.proto";
+import "scylla/pipelines/v1/source.proto";
 
-// Reads, stops, deletes, runs again and lists the jobs, and follows their logs. Each RPC needs an
+// Reads, stops, deletes, runs again, approves and lists the jobs, and follows their logs. Each RPC needs an
 // authenticated actor, else UNAUTHENTICATED. An unknown job gives PERMISSION_DENIED, as a
 // refusal does.
 service JobService {
@@ -20,6 +21,16 @@ service JobService {
   // resolve again. A job that did not end gives FAILED_PRECONDITION with the reason
   // JOB_NOT_ENDED.
   rpc RerunJob(RerunJobRequest) returns (RerunJobResponse);
+  // Approves a job from a fork that waits for an approval: it becomes pending, and runs with no
+  // secret value. A job in another state gives FAILED_PRECONDITION with the reason
+  // JOB_NOT_AWAITING_APPROVAL. The route permission is approve_job: the editors of the project,
+  // and the members of its workspace.
+  rpc ApproveJob(ApproveJobRequest) returns (ApproveJobResponse);
+  // Rejects a job from a fork that waits for an approval: it becomes cancelled, and no agent runs
+  // it. A job in another state gives FAILED_PRECONDITION with the reason
+  // JOB_NOT_AWAITING_APPROVAL. The route permission is reject_job: the editors of the project, and
+  // the members of its workspace.
+  rpc RejectJob(RejectJobRequest) returns (RejectJobResponse);
   // Lists the jobs of a pipeline, newest first.
   rpc ListPipelineJobs(ListPipelineJobsRequest) returns (ListPipelineJobsResponse);
   // Lists the jobs of a workspace, newest first: the readers of the workspace.
@@ -74,12 +85,51 @@ message RerunJobResponse {
   Job job = 1;
 }
 
+// The input of ApproveJob.
+message ApproveJobRequest {
+  // The job that waits for an approval. Required.
+  scylla.common.v1.Id job_id = 1;
+}
+
+// The output of ApproveJob.
+message ApproveJobResponse {
+  // The pending job.
+  Job job = 1;
+}
+
+// The input of RejectJob.
+message RejectJobRequest {
+  // The job that waits for an approval. Required.
+  scylla.common.v1.Id job_id = 1;
+}
+
+// The output of RejectJob.
+message RejectJobResponse {
+  // The cancelled job.
+  Job job = 1;
+}
+
+// The filters of a list of jobs. A job must match each filter that is set. A job with no source
+// matches no filter.
+message JobFilter {
+  // Only the jobs of this branch.
+  string branch = 1;
+  // Only the jobs of this event. Not set gives each event.
+  SourceEvent event = 2;
+  // Only the jobs of the commits of this author login on the provider.
+  string author_login = 3;
+  // Only the jobs of this pull request number. 0 gives each job.
+  uint32 pull_request = 4;
+}
+
 // The input of ListPipelineJobs.
 message ListPipelineJobsRequest {
   // The pipeline. Required.
   scylla.common.v1.Id pipeline_id = 1;
   // The page to return.
   scylla.common.v1.PageRequest page = 2;
+  // The filters. Not set gives all the jobs.
+  JobFilter filter = 3;
 }
 
 // The output of ListPipelineJobs.
@@ -98,6 +148,8 @@ message ListWorkspaceJobsRequest {
   scylla.common.v1.Id agent_id = 2;
   // The page to return.
   scylla.common.v1.PageRequest page = 3;
+  // The filters. Not set gives all the jobs.
+  JobFilter filter = 4;
 }
 
 // The output of ListWorkspaceJobs.

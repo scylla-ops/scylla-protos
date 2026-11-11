@@ -4,6 +4,8 @@ package scylla.pipelines.v1;
 
 import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
+import "scylla/integrations/v1/vcs.proto";
+import "scylla/pipelines/v1/source.proto";
 
 // A pipeline of a project: a graph of nodes that a job runs on an agent.
 message Pipeline {
@@ -25,6 +27,25 @@ message Pipeline {
   google.protobuf.Timestamp created_at = 8;
   // The time of the last change.
   google.protobuf.Timestamp updated_at = 9;
+  // Where the pipeline comes from: the editor, or a file of the linked repository. A file
+  // pipeline is read only: change its file.
+  scylla.integrations.v1.PipelineSource source = 10;
+  // The key of a file pipeline: pipeline for .scylla/pipeline.<ext>, else the name of its file
+  // with no extension. Empty for an editor pipeline.
+  string file_key = 11;
+  // The path of the file of a file pipeline on the default branch, for example
+  // .scylla/pipelines/build.toml. Empty for an editor pipeline.
+  string file_path = 12;
+  // How the agent gets the code before the first node. Not set gives the default.
+  CheckoutSettings checkout = 13;
+  // The time when the project moved to the repository files. An archived editor pipeline is read
+  // only, and its triggers stop. Not set for an active pipeline.
+  google.protobuf.Timestamp archived_at = 14;
+  // The time when the file of a file pipeline left the default branch. Its jobs stay. Not set
+  // while the file is there.
+  google.protobuf.Timestamp removed_at = 15;
+  // The number of errors of the file of a file pipeline on the default branch.
+  uint32 file_error_count = 16;
 }
 
 // The places of the nodes on the canvas of a pipeline.

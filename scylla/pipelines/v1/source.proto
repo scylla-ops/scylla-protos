@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/integrations/v1/vcs.proto";
+
+// The commit of a job in the linked repository, and the event that started the job.
+message JobSource {
+  // The provider.
+  scylla.integrations.v1.VcsProvider provider = 1;
+  // The full name of the repository, for example acme/api.
+  string repository = 2;
+  // The page of the repository on the provider.
+  string repository_url = 3;
+  // The commit: 40 hexadecimal characters.
+  string sha = 4;
+  // The page of the commit on the provider.
+  string commit_url = 5;
+  // The full Git ref of the event, for example refs/heads/main. Empty for a run on a SHA.
+  string ref = 6;
+  // The branch. Empty for a tag or a SHA.
+  string branch = 7;
+  // The tag. Empty for a branch or a SHA.
+  string tag = 8;
+  // The pull requests of the commit. One job can serve many pull requests: an event on the same
+  // commit adds its pull request to the job.
+  repeated PullRequestRef pull_requests = 9;
+  // True when the commit comes from a fork. The job gets no secret value, and SCYLLA_GIT_FORK is
+  // true.
+  bool from_fork = 10;
+  // The full name of the fork, for example octocat/api. Empty when the commit is not from a
+  // fork.
+  string fork_repository = 11;
+  // The login of the author of the commit on the provider. Empty when the provider does not know
+  // it.
+  string author_login = 12;
+  // The address of the avatar of the author. Empty if it has none.
+  string author_avatar_url = 13;
+  // The first line of the message of the commit.
+  string message_title = 14;
+  // The event that started the job.
+  SourceEvent event = 15;
+}
+
+// A pull request (GitHub) or a merge request (GitLab) of a job.
+message PullRequestRef {
+  // The number: 128 for #128 on GitHub, 17 for !17 on GitLab.
+  uint32 number = 1;
+  // The title.
+  string title = 2;
+  // The page of the pull request on the provider.
+  string url = 3;
+  // The source branch.
+  string source_branch = 4;
+  // The target branch.
+  string target_branch = 5;
+}
+
+// The event that started a job with a source.
+enum SourceEvent {
+  // Not used. In a filter: each event.
+  SOURCE_EVENT_UNSPECIFIED = 0;
+  // A push to a branch.
+  SOURCE_EVENT_PUSH = 1;
+  // A pull request or a merge request: opened, new commits, reopened, or ready for review.
+  SOURCE_EVENT_PULL_REQUEST = 2;
+  // A push of a tag.
+  SOURCE_EVENT_TAG = 3;
+  // A person started the job on a branch, a tag or a SHA.
+  SOURCE_EVENT_MANUAL = 4;
+  // A person asked for a new run on the provider, for example with Re-run on GitHub.
+  SOURCE_EVENT_PROVIDER_RERUN = 5;
+  // A cron or webhook trigger of Scylla started a file pipeline at the head of the default
+  // branch.
+  SOURCE_EVENT_TRIGGER = 6;
+}
+
+// The approval of a job from a fork. Only a job from a fork has one.
+message JobApproval {
+  // The state.
+  ApprovalState state = 1;
+  // The actor that approved or rejected the job. Not set while the job waits.
+  scylla.common.v1.Id decided_by = 2;
+  // The time of the decision. Not set while the job waits.
+  google.protobuf.Timestamp decided_at = 3;
+  // True when the pull request changes a file in .scylla/.
+  bool changes_pipeline_files = 4;
+  // The page of the changes of the pull request on the provider.
+  string changes_url = 5;
+}
+
+// The state of the approval of a job from a fork.
+enum ApprovalState {
+  // Not used.
+  APPROVAL_STATE_UNSPECIFIED = 0;
+  // The job waits for an editor of the project.
+  APPROVAL_STATE_WAITING = 1;
+  // An editor approved the job. It runs with no secret value.
+  APPROVAL_STATE_APPROVED = 2;
+  // An editor rejected the job. It is cancelled.
+  APPROVAL_STATE_REJECTED = 3;
+}
+
+// A pipeline file in a repository, at a commit.
+message PipelineFileRef {
+  // The path, for example .scylla/pipelines/build.toml.
+  string path = 1;
+  // The SHA of the blob of the file.
+  string blob_sha = 2;
+  // The commit.
+  string commit_sha = 3;
+  // The page of the file at the commit on the provider.
+  string url = 4;
+}
+
+// An error or a warning in a pipeline file.
+message FileError {
+  // The path of the file, for example .scylla/pipelines/build.toml. Empty for an error of the
+  // lookup that is not about one file, for example two files for one key.
+  string path = 1;
+  // The line, from 1. 0 when the error has no place in the file.
+  uint32 line = 2;
+  // The column, from 1. 0 when the error has no place in the file.
+  uint32 column = 3;
+  // The path of the value in the pipeline, for example nodes[2].needs[0]. Empty for an error of
+  // the syntax.
+  string field = 4;
+  // The text of the error, for example unknown key "timeout".
+  string message = 5;
+  // True for a warning: the file stays valid, for example with a secret that the project does
+  // not have.
+  bool warning = 6;
+}
+
+// How the agent gets the code of a job with a source, before the first node. A pipeline with no
+// settings uses the default: on, with the last commit only, no submodules and no LFS.
+message CheckoutSettings {
+  // True gets the code. False starts the nodes in an empty folder.
+  bool enabled = 1;
+  // The number of commits to fetch. 0 gets the full history.
+  uint32 depth = 2;
+  // True also gets the submodules.
+  bool submodules = 3;
+  // True also gets the Git LFS files.
+  bool lfs = 4;
+}
+
+// A commit of the linked repository: a branch, a tag or a SHA.
+message GitRef {
+  // The commit. Required.
+  oneof kind {
+    // The head of a branch, for example main.
+    string branch = 1;
+    // A tag, for example v1.2.0.
+    string tag = 2;
+    // A commit: 7 to 40 hexadecimal characters.
+    string sha = 3;
+  }
+}

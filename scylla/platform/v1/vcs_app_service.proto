@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package scylla.platform.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/integrations/v1/vcs.proto";
+
+// The GitHub App of a self-hosted instance, made with the manifest flow of GitHub. Each RPC checks
+// its permission on the platform: an instance admin passes, and a role of the platform level gives
+// it, else PERMISSION_DENIED. When the App comes from the settings of the server, GetVcsApp shows
+// it with managed_by_settings, and the other RPCs give FAILED_PRECONDITION with the reason
+// APP_MANAGED_BY_SETTINGS.
+service VcsAppService {
+  // Reads the GitHub App of the instance. An instance with no App gives an answer with no App.
+  // The route permission is get_vcs_app.
+  rpc GetVcsApp(GetVcsAppRequest) returns (GetVcsAppResponse);
+  // Starts the creation of the GitHub App. It gives the manifest of the App and the page of
+  // GitHub where the browser posts it, with a random state: one use, one hour. An instance with
+  // an App gives FAILED_PRECONDITION with the reason APP_EXISTS. The route permission is
+  // start_github_manifest.
+  rpc StartGitHubManifest(StartGitHubManifestRequest) returns (StartGitHubManifestResponse);
+  // Finishes the creation with the code of the redirect of GitHub. The server gets the id, the
+  // key and the secrets of the App from GitHub, and seals them. An unknown, used or old state
+  // gives FAILED_PRECONDITION with the reason STATE_EXPIRED. A server with no key of the secrets
+  // gives FAILED_PRECONDITION with the reason SECRET_KEY_MISSING. The route permission is
+  // complete_github_manifest.
+  rpc CompleteGitHubManifest(CompleteGitHubManifestRequest) returns (CompleteGitHubManifestResponse);
+  // Removes the GitHub App of the instance. Each GitHub connection becomes disconnected. The App
+  // stays on GitHub: delete it there. The route permission is delete_vcs_app.
+  rpc DeleteVcsApp(DeleteVcsAppRequest) returns (DeleteVcsAppResponse);
+}
+
+// The Git provider App of the instance. No answer holds its key or its secrets.
+message VcsApp {
+  // The id of the App in Scylla.
+  scylla.common.v1.Id id = 1;
+  // The provider.
+  scylla.integrations.v1.VcsProvider provider = 2;
+  // The id of the App on the provider.
+  string app_id = 3;
+  // The slug of the App, for example scylla-acme.
+  string slug = 4;
+  // The display name.
+  string name = 5;
+  // The login of the account that owns the App.
+  string owner = 6;
+  // The page of the App on the provider.
+  string web_url = 7;
+  // The address of the webhook of the App on this server.
+  string webhook_url = 8;
+  // The time of the last webhook of the App. Not set before the first one.
+  google.protobuf.Timestamp last_delivery_at = 9;
+  // The HTTP status that the server gave to the last webhook. 0 before the first one.
+  uint32 last_delivery_status = 10;
+  // True when the App comes from the settings of the server. It cannot change here.
+  bool managed_by_settings = 11;
+  // The actor that made the App. Not set for an App of the settings.
+  scylla.common.v1.Id created_by = 12;
+  // The creation time. Not set for an App of the settings.
+  google.protobuf.Timestamp created_at = 13;
+}
+
+// The input of GetVcsApp.
+message GetVcsAppRequest {}
+
+// The output of GetVcsApp.
+message GetVcsAppResponse {
+  // The App. Not set when the instance has none.
+  VcsApp app = 1;
+}
+
+// The input of StartGitHubManifest.
+message StartGitHubManifestRequest {
+  // The GitHub organization that owns the new App. Empty: the account of the person on GitHub.
+  string organization = 1;
+}
+
+// The output of StartGitHubManifest.
+message StartGitHubManifestResponse {
+  // The page of GitHub, with the state. The browser posts the manifest there, in the form field
+  // manifest.
+  string post_url = 1;
+  // The manifest of the App, as JSON.
+  string manifest = 2;
+  // The end of the validity of the state.
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// The input of CompleteGitHubManifest: the values of the redirect of GitHub.
+message CompleteGitHubManifestRequest {
+  // The code of the new App. Required.
+  string code = 1;
+  // The state of StartGitHubManifest. Required.
+  string state = 2;
+}
+
+// The output of CompleteGitHubManifest.
+message CompleteGitHubManifestResponse {
+  // The new App.
+  VcsApp app = 1;
+}
+
+// The input of DeleteVcsApp.
+message DeleteVcsAppRequest {}
+
+// The output of DeleteVcsApp.
+message DeleteVcsAppResponse {}

@@ -1,0 +1,333 @@
+syntax = "proto3";
+
+package scylla.integrations.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// A Git provider.
+enum VcsProvider {
+  // Not used.
+  VCS_PROVIDER_UNSPECIFIED = 0;
+  // GitHub.com, through a GitHub App.
+  VCS_PROVIDER_GITHUB = 1;
+  // GitLab.com, through the token of a service account.
+  VCS_PROVIDER_GITLAB = 2;
+}
+
+// The state of a connection, or of the link of a repository.
+enum ConnectionState {
+  // Not used.
+  CONNECTION_STATE_UNSPECIFIED = 0;
+  // Scylla can use it.
+  CONNECTION_STATE_ACTIVE = 1;
+  // An owner suspended the App on GitHub. The reports, the triggers and the checkouts stop
+  // until the owner starts the App again.
+  CONNECTION_STATE_SUSPENDED = 2;
+  // The provider refused a call. A person must repair the cause: the reason tells it.
+  CONNECTION_STATE_NEEDS_ATTENTION = 3;
+  // The App was uninstalled, or the token was revoked. The reports, the triggers and the
+  // checkouts stopped.
+  CONNECTION_STATE_DISCONNECTED = 4;
+}
+
+// How Scylla proves its identity to the provider.
+enum AuthKind {
+  // Not used.
+  AUTH_KIND_UNSPECIFIED = 0;
+  // An installation of the GitHub App. Scylla gets short tokens of the installation.
+  AUTH_KIND_APP_INSTALLATION = 1;
+  // The access token of a service account or of a bot user. The server keeps it sealed.
+  AUTH_KIND_ACCESS_TOKEN = 2;
+}
+
+// The kind of the account of a connection.
+enum AccountKind {
+  // Not used.
+  ACCOUNT_KIND_UNSPECIFIED = 0;
+  // A GitHub organization.
+  ACCOUNT_KIND_ORGANIZATION = 1;
+  // An account of a person: a GitHub user, or a GitLab user that is not a bot.
+  ACCOUNT_KIND_USER = 2;
+  // A GitLab service account, or the bot user of a group or project access token.
+  ACCOUNT_KIND_SERVICE_ACCOUNT = 3;
+}
+
+// How Scylla learns about the new commits of a repository.
+enum DeliveryMode {
+  // Not used.
+  DELIVERY_MODE_UNSPECIFIED = 0;
+  // The provider sends webhooks. Scylla also polls each 15 minutes to find a lost delivery.
+  DELIVERY_MODE_WEBHOOK = 1;
+  // No webhook arrives, so Scylla reads the branches and the open pull requests at an interval.
+  DELIVERY_MODE_POLLING = 2;
+}
+
+// How Scylla reports the result of a pipeline to the provider.
+enum ReportMode {
+  // Not used.
+  REPORT_MODE_UNSPECIFIED = 0;
+  // A check run with a summary of the nodes. GitHub only, and the default on GitHub.
+  REPORT_MODE_CHECK_RUN = 1;
+  // A commit status. The only mode on GitLab.
+  REPORT_MODE_COMMIT_STATUS = 2;
+}
+
+// The delivery state of a report.
+enum ReportState {
+  // Not used.
+  REPORT_STATE_UNSPECIFIED = 0;
+  // Scylla sends the latest state now.
+  REPORT_STATE_SENDING = 1;
+  // The provider has the latest state.
+  REPORT_STATE_SENT = 2;
+  // A call failed. Scylla sends the state again at next_attempt_at.
+  REPORT_STATE_RETRYING = 3;
+  // Scylla stopped after 10 attempts, or after a refusal of the provider. The error tells why.
+  REPORT_STATE_NOT_SENT = 4;
+}
+
+// The state of a rule on the provider that blocks the merge when a pipeline fails.
+enum MergeBlockState {
+  // Not used.
+  MERGE_BLOCK_STATE_UNSPECIFIED = 0;
+  // No rule.
+  MERGE_BLOCK_STATE_OFF = 1;
+  // Scylla changes the rule on the provider now.
+  MERGE_BLOCK_STATE_APPLYING = 2;
+  // The rule is on the provider.
+  MERGE_BLOCK_STATE_ON = 3;
+  // The connection does not have the permission (Administration write on GitHub) or the role
+  // (Maintainer on GitLab). Nothing changed on the provider: a person grants it, or sets the
+  // rule by hand.
+  MERGE_BLOCK_STATE_NEEDS_PERMISSION = 4;
+  // The provider does not allow the rule on this repository, for example a private repository
+  // of a free GitHub account.
+  MERGE_BLOCK_STATE_NOT_POSSIBLE = 5;
+  // A person changed the rule on the provider. Set it again to apply the rule of Scylla.
+  MERGE_BLOCK_STATE_OUT_OF_SYNC = 6;
+  // A call of the provider failed. The reason tells why.
+  MERGE_BLOCK_STATE_FAILED = 7;
+}
+
+// Where the pipelines of a project come from.
+enum PipelineSource {
+  // Not used.
+  PIPELINE_SOURCE_UNSPECIFIED = 0;
+  // The editor of Scylla. The default.
+  PIPELINE_SOURCE_EDITOR = 1;
+  // The files of the linked repository: .scylla/pipeline.<ext> or .scylla/pipelines/<key>.<ext>,
+  // with the extension toml, yaml, yml or json.
+  PIPELINE_SOURCE_FILE = 2;
+}
+
+// The kind of a Git ref.
+enum GitRefKind {
+  // Not used. In a filter: each kind.
+  GIT_REF_KIND_UNSPECIFIED = 0;
+  // A branch.
+  GIT_REF_KIND_BRANCH = 1;
+  // A tag.
+  GIT_REF_KIND_TAG = 2;
+}
+
+// A Git provider, as a workspace can use it.
+message VcsProviderInfo {
+  // The provider.
+  VcsProvider provider = 1;
+  // True when an admin of the workspace can make a connection now.
+  bool available = 2;
+  // Why the provider is not available, as a stable code: APP_MISSING (the instance has no
+  // GitHub App). Empty when the provider is available.
+  string unavailable_reason = 3;
+  // The address of the provider, for example https://github.com.
+  string web_url = 4;
+}
+
+// A connection of a workspace to a Git provider: an installation of the GitHub App, or the token
+// of a GitLab service account. All the projects of the workspace can use it. No answer holds a
+// token.
+message VcsConnection {
+  // The id of the connection.
+  scylla.common.v1.Id id = 1;
+  // The workspace.
+  scylla.common.v1.Id workspace_id = 2;
+  // The provider.
+  VcsProvider provider = 3;
+  // How Scylla proves its identity.
+  AuthKind auth_kind = 4;
+  // The id on the provider: the id of the installation on GitHub, the id of the user on GitLab.
+  string external_id = 5;
+  // The login of the account, for example acme or scylla-bot.
+  string account = 6;
+  // The kind of the account.
+  AccountKind account_kind = 7;
+  // The address of the avatar of the account. Empty if it has none.
+  string avatar_url = 8;
+  // The state.
+  ConnectionState state = 9;
+  // The reason of a state that is not active, as a stable code: APP_UNINSTALLED, APP_SUSPENDED,
+  // PERMISSIONS_NOT_ACCEPTED, TOKEN_EXPIRED, TOKEN_REVOKED or TOKEN_SCOPE_MISSING. Empty for an
+  // active connection.
+  string state_reason = 10;
+  // How the provider tells Scylla about the new commits.
+  DeliveryMode delivery_mode = 11;
+  // The time between two polls in polling mode, in seconds.
+  uint32 poll_interval_seconds = 12;
+  // True when the connection can see all the repositories of the account. False when an owner
+  // selected some repositories on GitHub.
+  bool all_repositories = 13;
+  // The number of repositories (GitHub) or projects (GitLab) that the connection can see.
+  uint32 repository_count = 14;
+  // The number of projects of the workspace that have a repository of this connection.
+  uint32 project_count = 15;
+  // The expiry of the token of a GitLab connection. Not set on GitHub, or for a token with no
+  // expiry.
+  google.protobuf.Timestamp token_expires_at = 16;
+  // The scopes of the token of a GitLab connection, for example api. Empty on GitHub.
+  repeated string scopes = 17;
+  // The permissions that Scylla asks for and that the connection does not have, for example
+  // administration on GitHub. A missing permission stops one feature, not the connection.
+  repeated string missing_permissions = 18;
+  // The page of the connection on the provider: the settings of the installation on GitHub, the
+  // profile of the account on GitLab.
+  string settings_url = 19;
+  // The actor that made the connection.
+  scylla.common.v1.Id created_by = 20;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 21;
+}
+
+// A repository that a connection can see: a GitHub repository or a GitLab project.
+message Repository {
+  // The id of the repository on the provider.
+  string external_id = 1;
+  // The full name, for example acme/api or bank-platform/payments.
+  string full_name = 2;
+  // The page of the repository on the provider.
+  string web_url = 3;
+  // The default branch, for example main.
+  string default_branch = 4;
+  // True for a private or internal repository.
+  bool private = 5;
+  // The role of the service account on a GitLab project: developer, maintainer or owner. Empty
+  // on GitHub.
+  string role = 6;
+  // The project of the workspace that has the link to this repository. Not set if no project
+  // has it.
+  scylla.common.v1.Id linked_project_id = 7;
+}
+
+// The link of a project to its repository. A project has at most one link.
+message RepositoryLink {
+  // The project.
+  scylla.common.v1.Id project_id = 1;
+  // The workspace of the project.
+  scylla.common.v1.Id workspace_id = 2;
+  // The connection that Scylla uses for the repository.
+  scylla.common.v1.Id connection_id = 3;
+  // The provider.
+  VcsProvider provider = 4;
+  // The login of the account of the connection.
+  string account = 5;
+  // The id of the repository on the provider.
+  string external_id = 6;
+  // The full name, for example acme/api.
+  string full_name = 7;
+  // The page of the repository on the provider.
+  string web_url = 8;
+  // The default branch.
+  string default_branch = 9;
+  // True for a private or internal repository.
+  bool private = 10;
+  // Where the pipelines of the project come from.
+  PipelineSource pipeline_source = 11;
+  // True when Scylla reports the results of the pipelines to the provider.
+  bool reports_enabled = 12;
+  // How Scylla reports. Always a commit status on GitLab.
+  ReportMode report_mode = 13;
+  // How the provider tells Scylla about the new commits.
+  DeliveryMode delivery_mode = 14;
+  // The time between two polls in polling mode, in seconds: 60 to 900.
+  uint32 poll_interval_seconds = 15;
+  // The time of the last webhook of the repository. Not set before the first one.
+  google.protobuf.Timestamp last_event_at = 16;
+  // The state: the state of the connection, or NEEDS_ATTENTION when the connection cannot use
+  // the repository.
+  ConnectionState state = 17;
+  // The reason of a state that is not active, as a stable code: REPOSITORY_NOT_VISIBLE,
+  // ROLE_TOO_LOW, WEBHOOK_DISABLED, or a reason of the connection. Empty for an active link.
+  string state_reason = 18;
+  // The actor that made the link.
+  scylla.common.v1.Id created_by = 19;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 20;
+}
+
+// A rule on the provider that blocks the merge into the default branch when a pipeline fails.
+// GitHub has one rule for each pipeline, in one ruleset. GitLab has one rule for the project.
+message MergeBlock {
+  // The project.
+  scylla.common.v1.Id project_id = 1;
+  // The pipeline. Not set for the rule of the project on GitLab.
+  scylla.common.v1.Id pipeline_id = 2;
+  // The name of the report that the rule needs, for example scylla/build. Empty for the rule of
+  // the project.
+  string context = 3;
+  // True when the rule must be on.
+  bool enabled = 4;
+  // The state of the rule on the provider.
+  MergeBlockState state = 5;
+  // The reason of a state that needs a person, as a stable code:
+  // ADMINISTRATION_PERMISSION_MISSING, ROLE_TOO_LOW or PRIVATE_REPOSITORY_NOT_ALLOWED. Empty
+  // when nothing failed.
+  string state_reason = 6;
+  // The branch of the rule: the default branch.
+  string branch = 7;
+  // The page on the provider where a person grants the permission or changes the rule.
+  string action_url = 8;
+  // The time of the last change.
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// The report of one pipeline of a job to the provider: a check run or a commit status on the
+// commit of the job.
+message VcsReport {
+  // The job.
+  scylla.common.v1.Id job_id = 1;
+  // The provider.
+  VcsProvider provider = 2;
+  // A check run or a commit status.
+  ReportMode mode = 3;
+  // The name of the report: scylla/ and the key of the pipeline, for example scylla/build.
+  string context = 4;
+  // The delivery state.
+  ReportState state = 5;
+  // The last state that the provider got, in the words of the provider, for example success or
+  // in_progress. Empty before the first send.
+  string sent_state = 6;
+  // The time of the last send. Not set before the first send.
+  google.protobuf.Timestamp sent_at = 7;
+  // The number of failed calls for the latest state.
+  uint32 attempts = 8;
+  // The time of the next call of a report that retries.
+  google.protobuf.Timestamp next_attempt_at = 9;
+  // The last error, as a short text with no secret. Empty when the last call passed.
+  string error = 10;
+  // The page of the report on the provider. Empty before the first send.
+  string external_url = 11;
+}
+
+// A branch or a tag of a linked repository.
+message GitRefInfo {
+  // The name, for example main or v1.2.0.
+  string name = 1;
+  // A branch or a tag.
+  GitRefKind kind = 2;
+  // The commit of the ref: 40 hexadecimal characters.
+  string sha = 3;
+  // True for the default branch.
+  bool default_branch = 4;
+  // The page of the ref on the provider.
+  string web_url = 5;
+}
