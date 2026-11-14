@@ -56,6 +56,9 @@ message Host {
   // The container runtime of the agent, for example docker. Empty if the agent has none: a step
   // in a container never goes to this agent.
   string container_runtime = 8;
+  // The features of the agent, for example checkout: the agent can get the code of a job. A job
+  // that needs a feature goes only to an agent that has it.
+  repeated string features = 9;
 }
 
 // A public key of an App.

@@ -101,6 +101,33 @@ message Dispatch {
   scylla.common.v1.Id project_id = 3;
   // The nodes.
   repeated DispatchNode nodes = 4;
+  // The checkout of the code before the first node. Not set: the job runs with no code. Only an
+  // agent with the feature checkout gets a job with a checkout.
+  DispatchCheckout checkout = 5;
+}
+
+// The checkout of the code of a job. The agent fetches one commit into the folder of the job
+// before the first node, and sends its log lines with the node id .checkout. It gives the header
+// to each git command with -c http.extraHeader, and never writes it in .git/config, in a URL or
+// in a log.
+message DispatchCheckout {
+  // The address of the repository with no credentials, for example
+  // https://github.com/acme/api.git.
+  string clone_url = 1;
+  // The commit: 40 hexadecimal characters.
+  string sha = 2;
+  // The ref to fetch when the commit is on no branch of the repository, for example
+  // refs/pull/57/head. Empty: the agent fetches the commit.
+  string fetch_ref = 3;
+  // The HTTP header with a short token that can only read the repository, for example
+  // "Authorization: Basic ...". The agent replaces its value with *** in the logs.
+  string auth_header = 4;
+  // The number of commits to fetch. 0 gets the full history.
+  uint32 depth = 5;
+  // True also gets the submodules.
+  bool submodules = 6;
+  // True also gets the Git LFS files.
+  bool lfs = 7;
 }
 
 // A node of a job to run.
@@ -156,7 +183,8 @@ message JobEvent {
   uint32 attempt = 4;
   // The exit code of a node that ended, if its process ended.
   optional int32 exit_code = 5;
-  // The error of EVENT_KIND_NODE_FAILED and EVENT_KIND_JOB_FAILED, at most 4096 characters.
+  // The error of EVENT_KIND_NODE_FAILED, EVENT_KIND_JOB_FAILED and EVENT_KIND_CHECKOUT_FAILED, at
+  // most 4096 characters.
   string error = 6;
 }
 
@@ -180,13 +208,19 @@ enum EventKind {
   EVENT_KIND_JOB_COMPLETED = 7;
   // The job failed.
   EVENT_KIND_JOB_FAILED = 8;
+  // The agent starts the checkout of the code.
+  EVENT_KIND_CHECKOUT_STARTED = 9;
+  // The checkout completed: the agent starts the nodes.
+  EVENT_KIND_CHECKOUT_COMPLETED = 10;
+  // The checkout failed. The error tells why.
+  EVENT_KIND_CHECKOUT_FAILED = 11;
 }
 
 // A batch of log lines of one node.
 message LogBatch {
   // The job.
   scylla.common.v1.Id job_id = 1;
-  // The node.
+  // The node, or .checkout for the lines of the checkout.
   string node_id = 2;
   // The lines, in order: 1 to 1000, each at most 64 KiB.
   repeated scylla.pipelines.v1.LogLine lines = 3;

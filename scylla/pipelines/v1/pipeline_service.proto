@@ -4,29 +4,36 @@ package scylla.pipelines.v1;
 
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
+import "scylla/integrations/v1/vcs.proto";
 import "scylla/pipelines/v1/job.proto";
 import "scylla/pipelines/v1/pipeline.proto";
+import "scylla/pipelines/v1/pipeline_file.proto";
+import "scylla/pipelines/v1/source.proto";
 
-// Creates, reads, changes, lists, deletes and runs the pipelines of a project. Each RPC needs an
-// authenticated actor, else UNAUTHENTICATED. An unknown pipeline gives PERMISSION_DENIED, as a
-// refusal does.
+// Creates, reads, changes, lists, deletes and runs the pipelines of a project, and reads the
+// pipeline files of its repository. Each RPC needs an authenticated actor, else UNAUTHENTICATED.
+// An unknown pipeline gives PERMISSION_DENIED, as a refusal does.
 service PipelineService {
   // Creates a pipeline in a project: the editors of the project, and the members of its
   // workspace. A bad node or a bad place gives INVALID_ARGUMENT with the path of the value, for
-  // example nodes[2].env[0].name.
+  // example nodes[2].env[0].name. A project that takes its pipelines from the files of its
+  // repository gives FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY.
   rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);
   // Reads one pipeline with its saved places.
   rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse);
   // Changes the name or the nodes of a pipeline. The request carries the version that the
   // client read: another version gives ABORTED, and the client reads the pipeline again. The
-  // places of the nodes that a change removes go away.
+  // places of the nodes that a change removes go away. A file pipeline or an archived pipeline
+  // gives FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY.
   rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse);
   // Saves places of a pipeline: the editors of the project, and the members of its workspace. The
   // request holds only the places that changed, and the other places stay. An id that is not a
   // node of the pipeline is ignored. The version of the pipeline does not change. A bad place or
   // a request with no layout gives INVALID_ARGUMENT.
   rpc SavePipelineLayout(SavePipelineLayoutRequest) returns (SavePipelineLayoutResponse);
-  // Deletes a pipeline with its jobs and their logs. The agents stop its running jobs.
+  // Deletes a pipeline with its jobs and their logs. The agents stop its running jobs. A file
+  // pipeline or an archived pipeline gives FAILED_PRECONDITION with the reason
+  // PIPELINE_READ_ONLY.
   rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
   // Lists the pipelines of a project, oldest first.
   rpc ListProjectPipelines(ListProjectPipelinesRequest) returns (ListProjectPipelinesResponse);
@@ -34,8 +41,44 @@ service PipelineService {
   // workspace.
   rpc ListWorkspacePipelines(ListWorkspacePipelinesRequest) returns (ListWorkspacePipelinesResponse);
   // Starts a job of a pipeline: a pending job with a snapshot of the nodes. A secret that a node
-  // names and that the project does not have gives NOT_FOUND.
+  // names and that the project does not have gives NOT_FOUND. A run on a ref, and each run of a
+  // file pipeline, reads its commit on the provider. A project with no link gives
+  // FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. A link or a connection that is not
+  // active gives the reason REPOSITORY_NOT_ACTIVE, with the state and the reason of the link in
+  // the metadata. A ref that the provider does not know gives NOT_FOUND. A failed call to the
+  // provider gives FAILED_PRECONDITION with the reason PROVIDER_LIMIT (the metadata retry_at
+  // tells when to try again), PROVIDER_REFUSED or PROVIDER_UNAVAILABLE. A server with no GitHub
+  // App for the connection gives the reason APP_MISSING, and a server with no key of the secrets
+  // gives the reason SECRET_KEY_MISSING. A file pipeline takes the file of its key at the
+  // commit: a commit with no such file gives NOT_FOUND, and a file with errors gives a failed
+  // job with no node, with the errors in file_errors.
   rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse);
+  // Reads a pipeline file that a client sends, and gives its pipeline and its errors. Nothing
+  // changes. A file larger than 1 MiB, or a path that is not .scylla/pipeline.<ext> or
+  // .scylla/pipelines/<key>.<ext>, gives INVALID_ARGUMENT. The route permission is
+  // validate_pipeline_file: the readers of the project.
+  rpc ValidatePipelineFile(ValidatePipelineFileRequest) returns (ValidatePipelineFileResponse);
+  // Writes a pipeline as a file in TOML, YAML or JSON, for a move to the repository files. The
+  // route permission is export_pipeline: the readers of the project.
+  rpc ExportPipeline(ExportPipelineRequest) returns (ExportPipelineResponse);
+  // Reads a file pipeline at a commit of the linked repository: its file, its nodes and its
+  // errors. An editor pipeline gives FAILED_PRECONDITION with the reason NOT_A_FILE_PIPELINE. A
+  // project with no link gives the reason NO_REPOSITORY_LINK, and a commit with no file of the
+  // key gives NOT_FOUND. The read of the commit gives the codes of RunPipeline on a ref. The
+  // route permission is get_file_pipeline: the readers of the project.
+  rpc GetFilePipeline(GetFilePipelineRequest) returns (GetFilePipelineResponse);
+  // Lists the pipeline files of the linked repository at a commit, with the errors of each file.
+  // A project with no link gives FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. The
+  // read of the commit gives the codes of RunPipeline on a ref. The route permission is
+  // list_pipeline_files: the readers of the project.
+  rpc ListPipelineFiles(ListPipelineFilesRequest) returns (ListPipelineFilesResponse);
+  // Sets where the pipelines of a project come from. To the files: the project needs a linked
+  // repository, else FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK; its editor pipelines
+  // become archived, and the files of the default branch become pipelines. To the editor: the
+  // archived pipelines come back, and the file pipelines become archived and hidden. The jobs
+  // stay. A move to the files reads the default branch, with the codes of RunPipeline on a ref.
+  // The route permission is set_pipeline_source: the editors of the project.
+  rpc SetPipelineSource(SetPipelineSourceRequest) returns (SetPipelineSourceResponse);
 }
 
 // The input of CreatePipeline.
@@ -48,6 +91,8 @@ message CreatePipelineRequest {
   repeated Node nodes = 3;
   // The places of the new nodes.
   PipelineLayout layout = 4;
+  // How the agent gets the code before the first node. Not set gives the default.
+  CheckoutSettings checkout = 5;
 }
 
 // The output of CreatePipeline.
@@ -82,6 +127,8 @@ message UpdatePipelineRequest {
   NodeList nodes = 4;
   // The places of the nodes that this change adds or renames, in the transaction of the change.
   PipelineLayout layout = 5;
+  // The new checkout settings.
+  CheckoutSettings checkout = 6;
 }
 
 // A list of nodes, so a request can tell "no change" from "these nodes".
@@ -152,10 +199,92 @@ message ListWorkspacePipelinesResponse {
 message RunPipelineRequest {
   // The pipeline. Required.
   scylla.common.v1.Id pipeline_id = 1;
+  // The commit to run, in the linked repository. Not set: an editor pipeline runs with no
+  // source, and a file pipeline runs at the head of the default branch.
+  GitRef ref = 2;
 }
 
 // The output of RunPipeline.
 message RunPipelineResponse {
-  // The new pending job.
+  // The new job: pending, or failed for a pipeline file with errors. Its waiting_reason is
+  // empty: read the job again to get it.
   Job job = 1;
 }
+
+// The input of ValidatePipelineFile.
+message ValidatePipelineFileRequest {
+  // The project. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The path of the file in the repository, for example .scylla/pipelines/build.toml. Its
+  // extension gives the format, and its name gives the key. Required.
+  string path = 2;
+  // The text of the file, at most 1 MiB.
+  string content = 3;
+}
+
+// The output of ValidatePipelineFile.
+message ValidatePipelineFileResponse {
+  // The file as the server read it, with its errors.
+  PipelineFile file = 1;
+}
+
+// The input of ExportPipeline.
+message ExportPipelineRequest {
+  // The pipeline. Required.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The format. Required.
+  PipelineFileFormat format = 2;
+}
+
+// The output of ExportPipeline.
+message ExportPipelineResponse {
+  // The text of the file.
+  string content = 1;
+  // The path to use in the repository, for example .scylla/pipelines/build.toml.
+  string path = 2;
+}
+
+// The input of GetFilePipeline.
+message GetFilePipelineRequest {
+  // The file pipeline. Required.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The commit. Not set gives the head of the default branch.
+  GitRef ref = 2;
+}
+
+// The output of GetFilePipeline.
+message GetFilePipelineResponse {
+  // The file of the pipeline at the commit.
+  PipelineFile file = 1;
+}
+
+// The input of ListPipelineFiles.
+message ListPipelineFilesRequest {
+  // The project. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The commit. Not set gives the head of the default branch.
+  GitRef ref = 2;
+}
+
+// The output of ListPipelineFiles.
+message ListPipelineFilesResponse {
+  // The files, in the order of their keys, with no text.
+  repeated PipelineFile files = 1;
+  // The files that the lookup refuses, each with its path: two files for one key, a file larger
+  // than 1 MiB, a name that is not a key, more than 32 files, or .scylla/pipeline.<ext> next to
+  // the folder .scylla/pipelines. The server reads no file of their keys.
+  repeated FileError errors = 2;
+  // The commit that the server read.
+  string commit_sha = 3;
+}
+
+// The input of SetPipelineSource.
+message SetPipelineSourceRequest {
+  // The project. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The new source. Required.
+  scylla.integrations.v1.PipelineSource source = 2;
+}
+
+// The output of SetPipelineSource.
+message SetPipelineSourceResponse {}
