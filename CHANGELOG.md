@@ -70,6 +70,8 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - The contract of the GitHub and GitLab integration: the services of `scylla.integrations.v1` and
   `VcsAppService`, the source, the approval and the checkout of a job, the pipeline files, the push,
   pull request and tag triggers, and the checkout in a dispatch.
+- `ListConnectionRepositoriesRequest` has an optional `workspace_id`. It replaces `project_id` to
+  list the repositories of a connection for a project that does not exist yet.
 
 ### Removed
 

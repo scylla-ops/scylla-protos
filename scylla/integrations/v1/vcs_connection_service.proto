@@ -57,8 +57,10 @@ service VcsConnectionService {
   rpc DeleteVcsConnection(DeleteVcsConnectionRequest) returns (DeleteVcsConnectionResponse);
   // Lists the repositories that a connection can see, for the link of a project, in the order of
   // the provider. On GitLab, only the projects where the service account is Developer or more.
-  // A connection of another workspace gives PERMISSION_DENIED. The route permission is
-  // list_connection_repositories on the project: its editors.
+  // A connection of another workspace gives PERMISSION_DENIED. The request names the project, or
+  // the workspace of a project to create: no target, or both, gives INVALID_ARGUMENT. The route
+  // permission is list_connection_repositories: on the project, its editors; on the workspace,
+  // its members.
   rpc ListConnectionRepositories(ListConnectionRepositoriesRequest) returns (ListConnectionRepositoriesResponse);
 }
 
@@ -179,7 +181,7 @@ message DeleteVcsConnectionResponse {}
 
 // The input of ListConnectionRepositories.
 message ListConnectionRepositoriesRequest {
-  // The project to link. Required.
+  // The project to link. Required when workspace_id is not set.
   scylla.common.v1.Id project_id = 1;
   // The connection, of the workspace of the project. Required.
   scylla.common.v1.Id connection_id = 2;
@@ -187,6 +189,8 @@ message ListConnectionRepositoriesRequest {
   string search = 3;
   // The page to return.
   scylla.common.v1.PageRequest page = 4;
+  // The workspace of a project to create, in place of project_id.
+  scylla.common.v1.Id workspace_id = 5;
 }
 
 // The output of ListConnectionRepositories.
