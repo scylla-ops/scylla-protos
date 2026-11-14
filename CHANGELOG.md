@@ -71,6 +71,11 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   `VcsAppService`, the source, the approval and the checkout of a job, the pipeline files, the push,
   pull request and tag triggers, and the checkout in a dispatch.
 
+### Removed
+
+- **Breaking:** `RepositoryLink.report_mode` and `UpdateRepositoryLinkRequest.report_mode` are
+  removed. The provider sets the mode of a report: a check run on GitHub, a commit status on GitLab.
+
 ### Fixed
 
 - An invitation keeps the rule of the escalation: the text of the API now says so.
