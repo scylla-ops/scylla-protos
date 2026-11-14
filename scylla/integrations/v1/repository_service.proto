@@ -81,10 +81,8 @@ message UpdateRepositoryLinkRequest {
   scylla.common.v1.Id project_id = 1;
   // True reports the results of the pipelines to the provider.
   optional bool reports_enabled = 2;
-  // The new report mode. A check run on GitLab gives INVALID_ARGUMENT.
-  ReportMode report_mode = 3;
   // The time between two polls in polling mode, 60 to 900 seconds, else INVALID_ARGUMENT.
-  optional uint32 poll_interval_seconds = 4;
+  optional uint32 poll_interval_seconds = 3;
 }
 
 // The output of UpdateRepositoryLink.

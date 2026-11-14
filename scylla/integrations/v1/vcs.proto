@@ -64,12 +64,12 @@ enum DeliveryMode {
   DELIVERY_MODE_POLLING = 2;
 }
 
-// How Scylla reports the result of a pipeline to the provider.
+// How Scylla reports the result of a pipeline to the provider. The provider sets it.
 enum ReportMode {
   // Not used.
   REPORT_MODE_UNSPECIFIED = 0;
-  // A check run with a summary of the nodes, or of the errors of an invalid pipeline file.
-  // GitHub only, and the default on GitHub.
+  // A check run with a summary of the nodes, or of the errors of an invalid pipeline file. The
+  // only mode on GitHub.
   REPORT_MODE_CHECK_RUN = 1;
   // A commit status. The only mode on GitLab.
   REPORT_MODE_COMMIT_STATUS = 2;
@@ -252,17 +252,15 @@ message RepositoryLink {
   PipelineSource pipeline_source = 11;
   // True when Scylla reports the results of the pipelines to the provider.
   bool reports_enabled = 12;
-  // How Scylla reports. Always a commit status on GitLab.
-  ReportMode report_mode = 13;
   // How the provider tells Scylla about the new commits.
-  DeliveryMode delivery_mode = 14;
+  DeliveryMode delivery_mode = 13;
   // The time between two polls in polling mode, in seconds: 60 to 900.
-  uint32 poll_interval_seconds = 15;
+  uint32 poll_interval_seconds = 14;
   // The time of the last webhook of the repository. Not set before the first one.
-  google.protobuf.Timestamp last_event_at = 16;
+  google.protobuf.Timestamp last_event_at = 15;
   // The state: the state of the connection, or NEEDS_ATTENTION when the connection cannot use
   // the repository.
-  ConnectionState state = 17;
+  ConnectionState state = 16;
   // The reason of the state, or of the polling mode of an active link, as a stable code. For a
   // link that is not active: REPOSITORY_NOT_VISIBLE (the App cannot see the repository now), or
   // the reason of the connection. For an active link in polling mode: ROLE_TOO_LOW (the GitLab
@@ -270,11 +268,11 @@ message RepositoryLink {
   // disabled the webhook) or WEBHOOKS_NOT_ARRIVING (a poll or a test found that the webhooks do
   // not arrive). A webhook that arrives removes WEBHOOK_DISABLED and WEBHOOKS_NOT_ARRIVING.
   // Empty when no reason applies.
-  string state_reason = 18;
+  string state_reason = 17;
   // The actor that made the link.
-  scylla.common.v1.Id created_by = 19;
+  scylla.common.v1.Id created_by = 18;
   // The creation time.
-  google.protobuf.Timestamp created_at = 20;
+  google.protobuf.Timestamp created_at = 19;
 }
 
 // A rule on the provider that blocks the merge into the default branch when a pipeline fails.
@@ -304,14 +302,14 @@ message MergeBlock {
   google.protobuf.Timestamp updated_at = 9;
 }
 
-// The report of one pipeline of a job to the provider: a check run or a commit status on the
-// commit of the job.
+// The report of one pipeline of a job to the provider: a check run on GitHub or a commit status
+// on GitLab, on the commit of the job.
 message VcsReport {
   // The job.
   scylla.common.v1.Id job_id = 1;
   // The provider.
   VcsProvider provider = 2;
-  // A check run or a commit status.
+  // A check run on GitHub, a commit status on GitLab.
   ReportMode mode = 3;
   // The name of the report: scylla/ and the key of the pipeline, for example scylla/build.
   string context = 4;
