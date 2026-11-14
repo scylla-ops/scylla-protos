@@ -70,13 +70,15 @@ message Webhook {
 }
 
 // The rules of a push trigger. A push to a matching branch starts one job for each pipeline and
-// each new head commit. One commit has one job: a pull request on the same commit uses it.
+// each new head commit. One commit has one job: a pull request on the same commit uses it. In a
+// project of files, a push or a pull request also starts a failed job for each file with errors.
 message Push {
   // The globs of the branches, for example main or release/*. Empty gives each branch.
   repeated string branches = 1;
   // The globs of the branches to skip. They win over branches.
   repeated string exclude_branches = 2;
-  // True skips a commit with [skip ci] in its message.
+  // True skips a push whose head commit has [skip ci] or [ci skip] in its message, in any case.
+  // In a pipeline file, the default is true.
   bool skip_ci = 3;
 }
 

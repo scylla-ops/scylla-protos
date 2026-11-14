@@ -20,7 +20,7 @@ message JobSource {
   string commit_url = 5;
   // The full Git ref of the event, for example refs/heads/main. Empty for a run on a SHA.
   string ref = 6;
-  // The branch. Empty for a tag or a SHA.
+  // The branch. Empty for a tag, a SHA, or a pull request from a fork.
   string branch = 7;
   // The tag. Empty for a branch or a SHA.
   string tag = 8;
@@ -38,7 +38,8 @@ message JobSource {
   string author_login = 12;
   // The address of the avatar of the author. Empty if it has none.
   string author_avatar_url = 13;
-  // The first line of the message of the commit.
+  // The first line of the message of the commit, at most 255 characters. With no message, the
+  // title of the pull request.
   string message_title = 14;
   // The event that started the job.
   SourceEvent event = 15;
@@ -72,8 +73,8 @@ enum SourceEvent {
   SOURCE_EVENT_MANUAL = 4;
   // A person asked for a new run on the provider, for example with Re-run on GitHub.
   SOURCE_EVENT_PROVIDER_RERUN = 5;
-  // A cron or webhook trigger of Scylla started a file pipeline at the head of the default
-  // branch.
+  // A trigger of Scylla started the job at the head of the default branch: a cron or webhook
+  // trigger of a file pipeline, or a push, pull request or tag trigger that a person fired now.
   SOURCE_EVENT_TRIGGER = 6;
 }
 
@@ -117,8 +118,8 @@ message PipelineFileRef {
 
 // An error or a warning in a pipeline file.
 message FileError {
-  // The path of the file, for example .scylla/pipelines/build.toml. Empty for an error of the
-  // lookup that is not about one file, for example two files for one key.
+  // The path of the file, for example .scylla/pipelines/build.toml. For two files of one key,
+  // the path of one of them.
   string path = 1;
   // The line, from 1. 0 when the error has no place in the file.
   uint32 line = 2;

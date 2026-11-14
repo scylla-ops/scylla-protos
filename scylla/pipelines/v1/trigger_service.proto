@@ -14,8 +14,11 @@ import "scylla/pipelines/v1/trigger.proto";
 service TriggerService {
   // Creates a trigger of a pipeline. A webhook trigger gives its secret one time: the server
   // keeps it encrypted, and a server with no key gives FAILED_PRECONDITION with the reason
-  // SECRET_KEY_MISSING. A kind that this server does not run gives INVALID_ARGUMENT on the field
-  // kind, with the reason TRIGGER_KIND_NOT_SUPPORTED.
+  // SECRET_KEY_MISSING. A push, pull request or tag trigger needs a linked repository, else
+  // FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. On a file pipeline, it gives
+  // FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY: the on section of the file gives its
+  // Git triggers. A bad glob, more than 32 globs in a list, or an unknown event of a pull request
+  // gives INVALID_ARGUMENT on its field, for example push.exclude_branches[1].
   rpc CreateTrigger(CreateTriggerRequest) returns (CreateTriggerResponse);
   // Reads one trigger. The secret of a webhook is never in it.
   rpc GetTrigger(GetTriggerRequest) returns (GetTriggerResponse);
@@ -24,11 +27,15 @@ service TriggerService {
   rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse);
   // Deletes a trigger. Its jobs stay.
   rpc DeleteTrigger(DeleteTriggerRequest) returns (DeleteTriggerResponse);
-  // Lists the triggers of a pipeline, oldest first.
+  // Lists the triggers of a pipeline, oldest first. The first page of a file pipeline starts
+  // with the read only triggers of the on section of its file: push, pull request, then tag.
   rpc ListPipelineTriggers(ListPipelineTriggersRequest) returns (ListPipelineTriggersResponse);
   // Starts or stops a trigger. A schedule that starts again fires at its next time after now.
   rpc SetTriggerEnabled(SetTriggerEnabledRequest) returns (SetTriggerEnabledResponse);
-  // Fires a trigger now, with no body: a JSON pointer gives an empty text.
+  // Fires a trigger now, with no body: a JSON pointer gives an empty text. A push, pull request
+  // or tag trigger runs its pipeline at the head of the default branch, and a file pipeline runs
+  // its file there, with the event TRIGGER. The read of that commit gives the codes of
+  // RunPipeline on a ref.
   rpc FireTriggerNow(FireTriggerNowRequest) returns (FireTriggerNowResponse);
 }
 
@@ -59,8 +66,8 @@ message CreateTriggerRequest {
 message CreateTriggerResponse {
   // The new trigger.
   Trigger trigger = 1;
-  // The secret of a webhook in hex, one time: the server keeps it encrypted. Empty for a cron
-  // trigger.
+  // The secret of a webhook in hex, one time: the server keeps it encrypted. Empty for another
+  // kind.
   string webhook_secret = 2;
 }
 
@@ -157,6 +164,7 @@ message FireTriggerNowRequest {
 
 // The output of FireTriggerNow.
 message FireTriggerNowResponse {
-  // The new pending job.
+  // The new job: pending, or failed for a pipeline file with errors. Its waiting_reason is
+  // empty: read the job again to get it.
   Job job = 1;
 }

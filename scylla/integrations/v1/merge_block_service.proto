@@ -10,13 +10,18 @@ import "scylla/integrations/v1/vcs.proto";
 // PERMISSION_DENIED, as a refusal does.
 service MergeBlockService {
   // Lists the merge rules of a project: one for each pipeline on GitHub, one for the project on
-  // GitLab. A pipeline with no rule is in the list with the state off. A project with no link
-  // gives an empty list. The route permission is list_merge_blocks: the readers of the project.
+  // GitLab. A pipeline with no rule is in the list with the state off. An archived or removed
+  // pipeline is not in the list, except when its rule is on. A project with no link gives an
+  // empty list. The route permission is list_merge_blocks: the readers of the project.
   rpc ListMergeBlocks(ListMergeBlocksRequest) returns (ListMergeBlocksResponse);
   // Turns a merge rule on or off, then changes the rule on the provider. With no permission or
   // no role on the provider, the rule gets the state NEEDS_PERMISSION, and nothing changes on the
   // provider. A project with no link gives FAILED_PRECONDITION with the reason
-  // NO_REPOSITORY_LINK. The route permission is set_merge_block: the editors of the project.
+  // NO_REPOSITORY_LINK, and a link or a connection that is not active gives the reason
+  // REPOSITORY_NOT_ACTIVE. A pipeline that is not of the project gives NOT_FOUND. A server with
+  // no GitHub App for the connection gives the reason APP_MISSING, and a server with no key of
+  // the secrets gives the reason SECRET_KEY_MISSING. The route permission is set_merge_block:
+  // the editors of the project.
   rpc SetMergeBlock(SetMergeBlockRequest) returns (SetMergeBlockResponse);
 }
 

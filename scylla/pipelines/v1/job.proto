@@ -38,7 +38,9 @@ message Job {
   google.protobuf.Timestamp started_at = 13;
   // The end.
   google.protobuf.Timestamp finished_at = 14;
-  // The trigger that started the job. Not set for a job that a person started.
+  // The trigger that started the job, or that started the job that it runs again. Not set for a
+  // run that a person started with RunPipeline, or for a job of a file pipeline that a Git event
+  // started.
   scylla.common.v1.Id trigger_id = 15;
   // The commit and the event of the job. Not set for a job with no source: the agent gets no
   // code.
@@ -52,7 +54,8 @@ message Job {
   // The checkout of the code before the first node. Not set for a job with no checkout.
   CheckoutRun checkout = 20;
   // Why a pending job waits, as a stable code: NO_AGENT_WITH_CHECKOUT (no agent that can get the
-  // code is online). Empty for another job.
+  // code is online). Empty for another job, and in the answers of RunPipeline and
+  // FireTriggerNow: read the job again.
   string waiting_reason = 21;
 }
 
@@ -66,9 +69,11 @@ enum JobStatus {
   JOB_STATUS_RUNNING = 2;
   // Each node completed or was skipped.
   JOB_STATUS_COMPLETED = 3;
-  // A node failed, or the dispatch failed. The error tells why.
+  // A node failed, the dispatch failed, or the pipeline file has errors: then the job fails at
+  // its creation, with no node. The error tells why.
   JOB_STATUS_FAILED = 4;
-  // A person cancelled the job.
+  // A person cancelled or rejected the job, or a new commit of its pull request replaced a job
+  // from a fork that waited for an approval.
   JOB_STATUS_CANCELLED = 5;
   // The agent of the running job went away.
   JOB_STATUS_ORPHANED = 6;

@@ -22,7 +22,8 @@ message PipelineFile {
   string name = 5;
   // The nodes. Empty when the file has an error.
   repeated Node nodes = 6;
-  // The checkout settings of the file. Not set gives the default.
+  // The checkout settings of the file, with the defaults for the values that the file does not
+  // set. Not set when the file has errors.
   CheckoutSettings checkout = 7;
   // The rules of on.push. Not set when the file has none.
   Push push = 8;

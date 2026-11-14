@@ -36,13 +36,17 @@ message Pipeline {
   // The path of the file of a file pipeline on the default branch, for example
   // .scylla/pipelines/build.toml. Empty for an editor pipeline.
   string file_path = 12;
-  // How the agent gets the code before the first node. Not set gives the default.
+  // How the agent gets the code before the first node. Always set, with the defaults for the
+  // values that nobody set.
   CheckoutSettings checkout = 13;
-  // The time when the project moved to the repository files. An archived editor pipeline is read
-  // only, and its triggers stop. Not set for an active pipeline.
+  // The time when the project moved to the other source: an editor pipeline is archived when the
+  // project moves to the repository files, and a file pipeline when the project moves back to
+  // the editor. An archived pipeline is read only, and its triggers stop. Not set for an active
+  // pipeline.
   google.protobuf.Timestamp archived_at = 14;
-  // The time when the file of a file pipeline left the default branch. Its jobs stay. Not set
-  // while the file is there.
+  // The time when the server saw that the file of a file pipeline is not on the default branch:
+  // the file left it, or a run on another branch made the pipeline. Its jobs stay. Not set while
+  // the file is on the default branch.
   google.protobuf.Timestamp removed_at = 15;
   // The number of errors of the file of a file pipeline on the default branch.
   uint32 file_error_count = 16;

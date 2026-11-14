@@ -76,3 +76,6 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - An invitation keeps the rule of the escalation: the text of the API now says so.
 - A role of the instance is not in the people of a workspace or of a project: `ListMembers` and
   `GetMemberAccess` now say so. The wire format did not change.
+- The comments of the Git integration RPCs and messages give the error codes, the states and the
+  reasons that the server gives, for example on RunPipeline, RerunJob, CreateTrigger and
+  RepositoryLink.state_reason.

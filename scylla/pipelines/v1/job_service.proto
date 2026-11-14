@@ -7,19 +7,23 @@ import "scylla/common/v1/page.proto";
 import "scylla/pipelines/v1/job.proto";
 import "scylla/pipelines/v1/source.proto";
 
-// Reads, stops, deletes, runs again, approves and lists the jobs, and follows their logs. Each RPC needs an
-// authenticated actor, else UNAUTHENTICATED. An unknown job gives PERMISSION_DENIED, as a
-// refusal does.
+// Reads, stops, deletes, runs again, approves, rejects and lists the jobs, and follows their
+// logs. Each RPC needs an authenticated actor, else UNAUTHENTICATED. An unknown job gives
+// PERMISSION_DENIED, as a refusal does.
 service JobService {
   // Reads one job, with the state of each node.
   rpc GetJob(GetJobRequest) returns (GetJobResponse);
-  // Cancels a pending or running job. Its agent stops it. A job that ended does not change.
+  // Cancels a job that waits for an approval, a pending job or a running job. Its agent stops
+  // it. A job that ended does not change.
   rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
   // Deletes a job with its logs. The agent stops a running job.
   rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse);
-  // Starts a new pending job with the nodes and the pipeline of a job that ended. The secrets
-  // resolve again. A job that did not end gives FAILED_PRECONDITION with the reason
-  // JOB_NOT_ENDED.
+  // Starts a new job with the nodes, the pipeline, the trigger, the commit, the pipeline file
+  // and the checkout settings of a job that ended. The secrets resolve again: a secret that the
+  // project does not have gives NOT_FOUND. A job from a fork waits for an approval again, and a
+  // job of a pipeline file with errors fails at once. The server does not call the provider: a
+  // job that gets the code fails at its dispatch when its project has no active link to the
+  // repository. A job that did not end gives FAILED_PRECONDITION with the reason JOB_NOT_ENDED.
   rpc RerunJob(RerunJobRequest) returns (RerunJobResponse);
   // Approves a job from a fork that waits for an approval: it becomes pending, and runs with no
   // secret value. A job in another state gives FAILED_PRECONDITION with the reason
@@ -81,7 +85,8 @@ message RerunJobRequest {
 
 // The output of RerunJob.
 message RerunJobResponse {
-  // The new pending job.
+  // The new job: pending, waiting for an approval for a job from a fork, or failed for a
+  // pipeline file with errors.
   Job job = 1;
 }
 

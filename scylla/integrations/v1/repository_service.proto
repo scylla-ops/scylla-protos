@@ -8,13 +8,18 @@ import "scylla/integrations/v1/vcs.proto";
 
 // Links a project to a repository of a connection of its workspace, and reads the branches and
 // the tags of the repository. Each RPC needs an authenticated actor, else UNAUTHENTICATED. An
-// unknown project gives PERMISSION_DENIED, as a refusal does.
+// unknown project gives PERMISSION_DENIED, as a refusal does. A call to the provider that fails
+// gives FAILED_PRECONDITION with the reason PROVIDER_REFUSED or PROVIDER_UNAVAILABLE. A server
+// with no GitHub App for the connection gives the reason APP_MISSING, and a server with no key
+// of the secrets gives the reason SECRET_KEY_MISSING.
 service RepositoryService {
   // Reads the link of a project. A project with no link gives an answer with no link. The route
   // permission is get_repository_link: the readers of the project.
   rpc GetRepositoryLink(GetRepositoryLinkRequest) returns (GetRepositoryLinkResponse);
   // Links a project to a repository. On GitLab, the server also makes the webhook of the
-  // project. A project with a link gives FAILED_PRECONDITION with the reason
+  // project when the service account is Maintainer or more. A Developer gets the polling mode
+  // with the reason ROLE_TOO_LOW, and the link stays active. A project with a link gives
+  // FAILED_PRECONDITION with the reason
   // REPOSITORY_ALREADY_LINKED, and a repository that the connection cannot see gives the reason
   // REPOSITORY_NOT_VISIBLE. A connection of another workspace gives PERMISSION_DENIED. The route
   // permission is link_repository: the editors of the project.
@@ -23,12 +28,16 @@ service RepositoryService {
   // project with no link gives FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. The route
   // permission is update_repository_link: the editors of the project.
   rpc UpdateRepositoryLink(UpdateRepositoryLinkRequest) returns (UpdateRepositoryLinkResponse);
-  // Removes the link of a project. Its Git triggers, its reports and its merge rules stop, and
-  // the server removes the rules and the webhook that it made, when it can. The jobs stay. The
-  // route permission is unlink_repository: the editors of the project.
+  // Removes the link of a project. Its Git triggers, its reports and its merge rules stop. The
+  // server removes the GitLab webhook that it made, when it can. The merge rules stay on the
+  // provider: remove them there. The jobs stay. A project with no link gives
+  // FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. The route permission is
+  // unlink_repository: the editors of the project.
   rpc UnlinkRepository(UnlinkRepositoryRequest) returns (UnlinkRepositoryResponse);
   // Asks the provider for a test webhook, and tells if it arrived within 10 seconds. A link in
-  // polling mode goes back to webhook mode when it arrives. A project with no link gives
+  // polling mode goes back to webhook mode when it arrives. A webhook that does not arrive moves
+  // the link to the polling mode with the reason WEBHOOKS_NOT_ARRIVING, and on GitHub its
+  // connection too. A project with no link gives
   // FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. The route permission is
   // test_delivery: the editors of the project.
   rpc TestDelivery(TestDeliveryRequest) returns (TestDeliveryResponse);

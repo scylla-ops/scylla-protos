@@ -24,10 +24,11 @@ enum ConnectionState {
   // An owner suspended the App on GitHub. The reports, the triggers and the checkouts stop
   // until the owner starts the App again.
   CONNECTION_STATE_SUSPENDED = 2;
-  // The provider refused a call. A person must repair the cause: the reason tells it.
+  // A person must repair the cause: the reason tells it. For example the provider refused a
+  // call, a token expired, a permission is missing, or the App cannot see the repository.
   CONNECTION_STATE_NEEDS_ATTENTION = 3;
-  // The App was uninstalled, or the token was revoked. The reports, the triggers and the
-  // checkouts stopped.
+  // The GitHub App was uninstalled, or an instance admin removed the GitHub App of the instance.
+  // The reports, the triggers and the checkouts stopped until a new install.
   CONNECTION_STATE_DISCONNECTED = 4;
 }
 
@@ -67,7 +68,8 @@ enum DeliveryMode {
 enum ReportMode {
   // Not used.
   REPORT_MODE_UNSPECIFIED = 0;
-  // A check run with a summary of the nodes. GitHub only, and the default on GitHub.
+  // A check run with a summary of the nodes, or of the errors of an invalid pipeline file.
+  // GitHub only, and the default on GitHub.
   REPORT_MODE_CHECK_RUN = 1;
   // A commit status. The only mode on GitLab.
   REPORT_MODE_COMMIT_STATUS = 2;
@@ -83,7 +85,9 @@ enum ReportState {
   REPORT_STATE_SENT = 2;
   // A call failed. Scylla sends the state again at next_attempt_at.
   REPORT_STATE_RETRYING = 3;
-  // Scylla stopped after 10 attempts, or after a refusal of the provider. The error tells why.
+  // Scylla stopped: after 10 failed calls, after a refusal of the provider, when the server
+  // cannot make the call, or when the link, its connection or its reports are not active. The
+  // error tells why.
   REPORT_STATE_NOT_SENT = 4;
 }
 
@@ -104,7 +108,8 @@ enum MergeBlockState {
   // The provider does not allow the rule on this repository, for example a private repository
   // of a free GitHub account.
   MERGE_BLOCK_STATE_NOT_POSSIBLE = 5;
-  // A person changed the rule on the provider. Set it again to apply the rule of Scylla.
+  // A person changed the rule on the provider, or the report of the pipeline has a new name.
+  // Set it again to apply the rule of Scylla.
   MERGE_BLOCK_STATE_OUT_OF_SYNC = 6;
   // A call of the provider failed. The reason tells why.
   MERGE_BLOCK_STATE_FAILED = 7;
@@ -138,8 +143,8 @@ message VcsProviderInfo {
   // True when an admin of the workspace can make a connection now.
   bool available = 2;
   // Why the provider is not available, as a stable code: APP_MISSING (the instance has no
-  // GitHub App) or SECRET_KEY_MISSING (the server has no key to seal a GitLab token). Empty when
-  // the provider is available.
+  // GitHub App) or SECRET_KEY_MISSING (the server has no key to open the GitHub App of the
+  // instance, or to seal a GitLab token). Empty when the provider is available.
   string unavailable_reason = 3;
   // The address of the provider, for example https://github.com.
   string web_url = 4;
@@ -173,7 +178,8 @@ message VcsConnection {
   string state_reason = 10;
   // How the provider tells Scylla about the new commits.
   DeliveryMode delivery_mode = 11;
-  // The time between two polls in polling mode, in seconds.
+  // The time between two polls that a new link of this connection gets, in seconds. Each link
+  // keeps its own time.
   uint32 poll_interval_seconds = 12;
   // True when the connection can see all the repositories of the account. False when an owner
   // selected some repositories on GitHub.
@@ -187,8 +193,9 @@ message VcsConnection {
   google.protobuf.Timestamp token_expires_at = 16;
   // The scopes of the token of a GitLab connection, for example api. Empty on GitHub.
   repeated string scopes = 17;
-  // The permissions that Scylla asks for and that the connection does not have, for example
-  // administration on GitHub. A missing permission stops one feature, not the connection.
+  // The permissions that Scylla asks for and that the GitHub connection does not have. A missing
+  // administration permission stops only the merge rules. Another missing permission makes the
+  // connection NEEDS_ATTENTION with the reason PERMISSIONS_NOT_ACCEPTED. Empty on GitLab.
   repeated string missing_permissions = 18;
   // The page of the connection on the provider: the settings of the installation on GitHub, the
   // profile of the account on GitLab.
@@ -256,8 +263,13 @@ message RepositoryLink {
   // The state: the state of the connection, or NEEDS_ATTENTION when the connection cannot use
   // the repository.
   ConnectionState state = 17;
-  // The reason of a state that is not active, as a stable code: REPOSITORY_NOT_VISIBLE,
-  // ROLE_TOO_LOW, WEBHOOK_DISABLED, or a reason of the connection. Empty for an active link.
+  // The reason of the state, or of the polling mode of an active link, as a stable code. For a
+  // link that is not active: REPOSITORY_NOT_VISIBLE (the App cannot see the repository now), or
+  // the reason of the connection. For an active link in polling mode: ROLE_TOO_LOW (the GitLab
+  // service account is Developer, so Scylla cannot make the webhook), WEBHOOK_DISABLED (GitLab
+  // disabled the webhook) or WEBHOOKS_NOT_ARRIVING (a poll or a test found that the webhooks do
+  // not arrive). A webhook that arrives removes WEBHOOK_DISABLED and WEBHOOKS_NOT_ARRIVING.
+  // Empty when no reason applies.
   string state_reason = 18;
   // The actor that made the link.
   scylla.common.v1.Id created_by = 19;
@@ -279,15 +291,16 @@ message MergeBlock {
   bool enabled = 4;
   // The state of the rule on the provider.
   MergeBlockState state = 5;
-  // The reason of a state that needs a person, as a stable code:
-  // ADMINISTRATION_PERMISSION_MISSING, ROLE_TOO_LOW or PRIVATE_REPOSITORY_NOT_ALLOWED. Empty
-  // when nothing failed.
+  // The reason of a state that is not on or off, as a stable code:
+  // ADMINISTRATION_PERMISSION_MISSING or ROLE_TOO_LOW (NEEDS_PERMISSION),
+  // PRIVATE_REPOSITORY_NOT_ALLOWED (NOT_POSSIBLE), or PROVIDER_LIMIT, PROVIDER_REFUSED or
+  // PROVIDER_UNAVAILABLE (FAILED). Empty when nothing failed.
   string state_reason = 6;
   // The branch of the rule: the default branch.
   string branch = 7;
   // The page on the provider where a person grants the permission or changes the rule.
   string action_url = 8;
-  // The time of the last change.
+  // The time of the last change. Not set for a pipeline with no rule.
   google.protobuf.Timestamp updated_at = 9;
 }
 
