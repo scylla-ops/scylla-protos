@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package scylla.pipelines.v1;
 
+import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 import "scylla/pipelines/v1/job.proto";
@@ -35,9 +36,13 @@ service JobService {
   // JOB_NOT_AWAITING_APPROVAL. The route permission is reject_job: the editors of the project, and
   // the members of its workspace.
   rpc RejectJob(RejectJobRequest) returns (RejectJobResponse);
-  // Lists the jobs of a pipeline, newest first.
+  // Lists the jobs of a pipeline, newest first. A bad filter gives INVALID_ARGUMENT.
   rpc ListPipelineJobs(ListPipelineJobsRequest) returns (ListPipelineJobsResponse);
-  // Lists the jobs of a workspace, newest first: the readers of the workspace.
+  // Lists the jobs of a workspace, newest first, in the projects that the caller can see: each
+  // project for a reader of the workspace, and the projects where the caller is a viewer. The
+  // route permission is list_workspace_jobs, on the workspace or on a project. A filter never
+  // causes a refusal: a caller with no role, or an unknown workspace, gets an empty list. A bad
+  // filter, or more than 100 project or pipeline ids, gives INVALID_ARGUMENT.
   rpc ListWorkspaceJobs(ListWorkspaceJobsRequest) returns (ListWorkspaceJobsResponse);
   // Sends the logs of a job after a cursor, then the new logs while the job runs. The stream
   // ends after the last logs of a job that ended.
@@ -115,7 +120,7 @@ message RejectJobResponse {
 }
 
 // The filters of a list of jobs. A job must match each filter that is set. A job with no source
-// matches no filter.
+// matches no filter of the source: branch, event, author_login and pull_request.
 message JobFilter {
   // Only the jobs of this branch.
   string branch = 1;
@@ -125,6 +130,27 @@ message JobFilter {
   string author_login = 3;
   // Only the jobs of this pull request number. 0 gives each job.
   uint32 pull_request = 4;
+  // Only the jobs in one of these states. Empty gives each state. JOB_STATUS_UNSPECIFIED gives
+  // INVALID_ARGUMENT.
+  repeated JobStatus statuses = 5;
+  // Only the jobs created at this time or later.
+  google.protobuf.Timestamp created_after = 6;
+  // Only the jobs created before this time.
+  google.protobuf.Timestamp created_before = 7;
+  // Only the jobs with one of these origins. Empty gives each origin. JOB_ORIGIN_UNSPECIFIED gives
+  // INVALID_ARGUMENT.
+  repeated JobOrigin origins = 8;
+}
+
+// How much of each job a list gives.
+enum JobView {
+  // Not set: JOB_VIEW_FULL.
+  JOB_VIEW_UNSPECIFIED = 0;
+  // Each field of the job.
+  JOB_VIEW_FULL = 1;
+  // Each field of the job but nodes. The state of each node stays in runs, with its attempt and
+  // its max_attempts.
+  JOB_VIEW_SUMMARY = 2;
 }
 
 // The input of ListPipelineJobs.
@@ -155,6 +181,13 @@ message ListWorkspaceJobsRequest {
   scylla.common.v1.PageRequest page = 3;
   // The filters. Not set gives all the jobs.
   JobFilter filter = 4;
+  // Only the jobs of these projects, at most 100. Empty gives each project that the caller can
+  // see. A project that the caller cannot see gives no job.
+  repeated scylla.common.v1.Id project_ids = 5;
+  // Only the jobs of these pipelines, at most 100. Empty gives each pipeline.
+  repeated scylla.common.v1.Id pipeline_ids = 6;
+  // How much of each job to give. Not set gives JOB_VIEW_FULL.
+  JobView view = 7;
 }
 
 // The output of ListWorkspaceJobs.

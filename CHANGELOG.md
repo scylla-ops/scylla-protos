@@ -79,6 +79,10 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   caller can see, with their recent jobs, their health and their triggers. New messages
   `PipelineSummary`, `RecentJob` and `NextFire`, and new enums `PipelineSummaryOrder` and
   `TriggerKind`.
+- `Job.origin` (`JobOrigin`) tells what started a job. `JobFilter` filters on the states, the
+  origins and a range of the time of creation. `ListWorkspaceJobs` filters on projects and
+  pipelines, and the view `JOB_VIEW_SUMMARY` gives the jobs with no nodes. `NodeRun.max_attempts`
+  gives the most attempts of a node, and `waiting_reason` can be `NO_AGENT_WITH_CONTAINER`.
 
 ### Removed
 
