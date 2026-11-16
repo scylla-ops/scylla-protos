@@ -83,6 +83,12 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   origins and a range of the time of creation. `ListWorkspaceJobs` filters on projects and
   pipelines, and the view `JOB_VIEW_SUMMARY` gives the jobs with no nodes. `NodeRun.max_attempts`
   gives the most attempts of a node, and `waiting_reason` can be `NO_AGENT_WITH_CONTAINER`.
+- `JobService.GetJobStats` gives the dashboard the figures of the jobs of a workspace that the
+  caller can see for a period: the counts by end, the durations, the waits for an agent and the run
+  time, with buckets of hours, days or weeks in the time zone of the workspace, groups by project,
+  pipeline, agent or origin, and the previous period. New messages `JobFigures`, `JobBucket` and
+  `JobGroup`, and new enums `JobStatsBucket`, `JobStatsGroup` and `JobStatsOrder`. `JobOutcomes`
+  moves from `scylla.agents.v1` to `scylla.pipelines.v1`, with the same fields.
 
 ### Removed
 
