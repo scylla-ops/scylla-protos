@@ -136,3 +136,19 @@ enum FireStatus {
   // The fire failed. last_error tells why.
   FIRE_STATUS_ERROR = 2;
 }
+
+// The kind of a trigger: what starts its jobs.
+enum TriggerKind {
+  // Not used.
+  TRIGGER_KIND_UNSPECIFIED = 0;
+  // A schedule.
+  TRIGGER_KIND_CRON = 1;
+  // A webhook.
+  TRIGGER_KIND_WEBHOOK = 2;
+  // A push to a branch of the linked repository.
+  TRIGGER_KIND_PUSH = 3;
+  // A pull request of the linked repository.
+  TRIGGER_KIND_PULL_REQUEST = 4;
+  // A push of a tag of the linked repository.
+  TRIGGER_KIND_TAG = 5;
+}

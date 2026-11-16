@@ -75,6 +75,10 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - `Workspace.time_zone`: the IANA time zone of a workspace, `UTC` for a new workspace.
   `UpdateWorkspace` changes it with `time_zone`, and a name that is not an IANA name gives
   `INVALID_ARGUMENT` on `time_zone`.
+- `PipelineService.ListPipelineSummaries` gives the dashboard the pipelines of a workspace that the
+  caller can see, with their recent jobs, their health and their triggers. New messages
+  `PipelineSummary`, `RecentJob` and `NextFire`, and new enums `PipelineSummaryOrder` and
+  `TriggerKind`.
 
 ### Removed
 

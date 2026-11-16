@@ -8,6 +8,7 @@ import "scylla/integrations/v1/vcs.proto";
 import "scylla/pipelines/v1/job.proto";
 import "scylla/pipelines/v1/pipeline.proto";
 import "scylla/pipelines/v1/pipeline_file.proto";
+import "scylla/pipelines/v1/pipeline_summary.proto";
 import "scylla/pipelines/v1/source.proto";
 
 // Creates, reads, changes, lists, deletes and runs the pipelines of a project, and reads the
@@ -40,6 +41,15 @@ service PipelineService {
   // Lists the pipelines of each project of a workspace, oldest first: the readers of the
   // workspace.
   rpc ListWorkspacePipelines(ListWorkspacePipelinesRequest) returns (ListWorkspacePipelinesResponse);
+  // Lists the pipelines of a workspace with their recent jobs, their health and their triggers,
+  // for the dashboard: the pipelines of ListWorkspacePipelines. The caller gets the pipelines of
+  // the projects that it can see: the readers of the workspace see each project, and the viewers
+  // of a project see that project. A filter never causes a refusal: a project or a pipeline that
+  // the caller cannot see is not in the list. The server sorts the pipelines at each call, so a
+  // pipeline that moves between two calls can be on two pages or on no page. A run count above
+  // 50, or more than 100 ids in project_ids or in pipeline_ids, gives INVALID_ARGUMENT. The route
+  // permission is list_pipeline_summaries.
+  rpc ListPipelineSummaries(ListPipelineSummariesRequest) returns (ListPipelineSummariesResponse);
   // Starts a job of a pipeline: a pending job with a snapshot of the nodes. A secret that a node
   // names and that the project does not have gives NOT_FOUND. A run on a ref, and each run of a
   // file pipeline, reads its commit on the provider. A project with no link gives
@@ -193,6 +203,35 @@ message ListWorkspacePipelinesResponse {
   repeated Pipeline pipelines = 1;
   // How to get the next page.
   scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of ListPipelineSummaries.
+message ListPipelineSummariesRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // Only the pipelines of these projects, at most 100. Empty: each project.
+  repeated scylla.common.v1.Id project_ids = 2;
+  // Only these pipelines, at most 100. Empty: each pipeline.
+  repeated scylla.common.v1.Id pipeline_ids = 3;
+  // The number of recent jobs of each pipeline, at most 50. 0 gives 20. The counts and the median
+  // of a summary use the same jobs.
+  uint32 runs = 4;
+  // The order of the pipelines.
+  PipelineSummaryOrder order = 5;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 6;
+}
+
+// The output of ListPipelineSummaries.
+message ListPipelineSummariesResponse {
+  // The pipelines of the page, in the order of the request.
+  repeated PipelineSummary pipelines = 1;
+  // The number of pipelines on all the pages.
+  uint32 total = 2;
+  // The number of green pipelines on all the pages.
+  uint32 green = 3;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 4;
 }
 
 // The input of RunPipeline.
