@@ -19,4 +19,7 @@ message Workspace {
   // True when the personal tokens of the users act in this workspace. False: each call of a
   // personal token on this workspace gets PERMISSION_DENIED.
   bool personal_tokens_enabled = 5;
+  // The time zone of the workspace, for its days and its hours: an IANA name, for example
+  // Europe/Paris. A new workspace has UTC.
+  string time_zone = 6;
 }

@@ -72,6 +72,9 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   pull request and tag triggers, and the checkout in a dispatch.
 - `ListConnectionRepositoriesRequest` has an optional `workspace_id`. It replaces `project_id` to
   list the repositories of a connection for a project that does not exist yet.
+- `Workspace.time_zone`: the IANA time zone of a workspace, `UTC` for a new workspace.
+  `UpdateWorkspace` changes it with `time_zone`, and a name that is not an IANA name gives
+  `INVALID_ARGUMENT` on `time_zone`.
 
 ### Removed
 
