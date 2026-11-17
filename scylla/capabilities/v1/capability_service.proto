@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package scylla.capabilities.v1;
 
+import "scylla/apps/v1/app.proto";
+
 // Tells a client which edition runs and which optional features it has.
 service CapabilityService {
   // Returns the edition and its optional features.
@@ -18,9 +20,12 @@ message GetCapabilitiesResponse {
   // The optional features of this edition. The core features are always present and are not
   // in the list.
   repeated string capabilities = 2;
-  // The version of the server. An agent that has the same version needs no update.
+  // The version of the server.
   string version = 3;
   // The image of the agent for this server, with its tag, for the command that runs it in a
   // container.
   string agent_image = 4;
+  // The agent protocols that the server takes. Compare with the protocol of an agent, not with
+  // its version.
+  scylla.apps.v1.AgentProtocolRange agent_protocol = 5;
 }
