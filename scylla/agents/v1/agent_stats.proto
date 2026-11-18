@@ -31,3 +31,46 @@ message DayOutcomes {
   // The jobs created on that day, by their end.
   scylla.pipelines.v1.JobOutcomes outcomes = 2;
 }
+
+// The busy job slots of a period or of a bucket. A job holds one slot of its agent from its start
+// to its end, or to now while it runs.
+message SlotFigures {
+  // The mean number of busy slots: the sum of the times that the jobs held a slot in the period
+  // or in the bucket, divided by its length up to now.
+  double busy_slots_avg = 1;
+  // The largest number of slots that were busy at the same time.
+  uint32 busy_slots_max = 2;
+}
+
+// The busy job slots of one hour, day or week of the period.
+message SlotBucket {
+  // The start of the hour, day or week in the time zone of the workspace. The first bucket can
+  // start before from: it counts the slots from from.
+  google.protobuf.Timestamp start = 1;
+  // The busy slots of the bucket.
+  SlotFigures figures = 2;
+}
+
+// The use of the machine of an agent in a period or in a bucket, from its samples. With no
+// sample, each value is 0.
+message MetricsFigures {
+  // The number of samples.
+  uint32 samples = 1;
+  // The mean CPU use of the samples, in percent.
+  float cpu_avg_percent = 2;
+  // The largest CPU use of one sample, in percent.
+  float cpu_max_percent = 3;
+  // The mean memory in use of the samples, in bytes.
+  uint64 memory_avg_bytes = 4;
+  // The largest memory in use of one sample, in bytes.
+  uint64 memory_max_bytes = 5;
+}
+
+// The use of the machine of an agent in one hour, day or week of the period.
+message MetricsBucket {
+  // The start of the hour, day or week in the time zone of the workspace. The first bucket can
+  // start before from: it counts the samples from from.
+  google.protobuf.Timestamp start = 1;
+  // The samples of the bucket.
+  MetricsFigures figures = 2;
+}

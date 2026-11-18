@@ -91,6 +91,11 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   moves from `scylla.agents.v1` to `scylla.pipelines.v1`, with the same fields.
 - `DashboardService` keeps the saved layouts of the dashboard of a workspace: list, get, create,
   change at the version that the client read, delete, and the team default of the workspace.
+- `AgentService.GetSlotUsage` gives the busy job slots of the agents of a workspace and the slots of
+  the connected agents. `GetAgentMetrics` gives the CPU use and the used memory of the machine of an
+  agent, in buckets. The agent sends `Metrics` at the interval of
+  `Welcome.metrics_interval_seconds`. `Host.started_at` tells the start of the agent, and
+  `App.last_sample` gives its last sample.
 
 ### Removed
 

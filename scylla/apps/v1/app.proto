@@ -35,6 +35,9 @@ message App {
   // The number of jobs that the agent holds now: the jobs that it took and that did not end.
   // Compare with host.capacity. ListJobs with agent_id gives these jobs.
   uint32 running_jobs = 11;
+  // The last sample of the use of the machine of the agent, of the last 7 days. Not set when the
+  // agent sent none. AgentService.GetAgentMetrics gives the samples of a period.
+  HostSample last_sample = 12;
 }
 
 // The machine of an agent, as the agent tells it in its hello.
@@ -59,6 +62,18 @@ message Host {
   // The features of the agent, for example checkout: the agent can get the code of a job. A job
   // that needs a feature goes only to an agent that has it.
   repeated string features = 9;
+  // The start of the process of the agent. Not set by an agent of an older version.
+  google.protobuf.Timestamp started_at = 10;
+}
+
+// A sample of the use of the machine of an agent.
+message HostSample {
+  // The time when the server got the sample.
+  google.protobuf.Timestamp at = 1;
+  // The use of all the CPUs of the machine, in percent: 0 to 100.
+  float cpu_percent = 2;
+  // The memory in use on the machine, in bytes. Compare with host.memory_bytes.
+  uint64 memory_used_bytes = 3;
 }
 
 // A public key of an App.
