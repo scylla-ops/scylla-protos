@@ -35,9 +35,38 @@ message App {
   // The number of jobs that the agent holds now: the jobs that it took and that did not end.
   // Compare with host.capacity. ListJobs with agent_id gives these jobs.
   uint32 running_jobs = 11;
+  // How the agent fits this server, from the protocol and the features of its last hello.
+  // AGENT_COMPATIBILITY_UNSPECIFIED for an App that is not an agent, and before the first stream.
+  AgentCompatibility compatibility = 12;
+  // The features that the server can need and that the agent does not tell, for example
+  // checkout. Empty before the first stream.
+  repeated string missing_features = 13;
   // The last sample of the use of the machine of the agent, of the last 7 days. Not set when the
   // agent sent none. AgentService.GetAgentMetrics gives the samples of a period.
-  HostSample last_sample = 12;
+  HostSample last_sample = 14;
+}
+
+// How an agent fits the server.
+enum AgentCompatibility {
+  // Not an agent, or no hello yet.
+  AGENT_COMPATIBILITY_UNSPECIFIED = 0;
+  // The agent has the current protocol of the server.
+  AGENT_COMPATIBILITY_COMPATIBLE = 1;
+  // The protocol of the agent is older than the current protocol, and not older than the
+  // minimum: the agent connects and gets only the jobs that it can run. Update it.
+  AGENT_COMPATIBILITY_OUTDATED = 2;
+  // The protocol of the agent is older than the minimum of the server: its stream is refused
+  // with AGENT_TOO_OLD. Update it.
+  AGENT_COMPATIBILITY_UNSUPPORTED = 3;
+}
+
+// The agent protocols that a server takes.
+message AgentProtocolRange {
+  // The oldest protocol that the server takes. An agent with an older protocol gets
+  // FAILED_PRECONDITION with the reason AGENT_TOO_OLD on AgentService.OpenStream.
+  uint32 min = 1;
+  // The protocol of the agent of the same version as the server.
+  uint32 current = 2;
 }
 
 // The machine of an agent, as the agent tells it in its hello.
@@ -62,8 +91,14 @@ message Host {
   // The features of the agent, for example checkout: the agent can get the code of a job. A job
   // that needs a feature goes only to an agent that has it.
   repeated string features = 9;
+  // The protocol level of the agent, separate from its version. It grows when the agent learns
+  // a new message or a new feature. An agent older than the protocol sends 0. The protocol 2
+  // has the checkout of the code.
+  uint32 protocol = 10;
+  // The commit of the build of the agent. Empty for a build with no commit.
+  string build = 11;
   // The start of the process of the agent. Not set by an agent of an older version.
-  google.protobuf.Timestamp started_at = 10;
+  google.protobuf.Timestamp started_at = 12;
 }
 
 // A sample of the use of the machine of an agent.

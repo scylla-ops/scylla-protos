@@ -18,7 +18,9 @@ service AgentService {
   // sends a Renew with a new token from TokenService.ExchangeAppAssertion. At the expiry of the
   // last token, the server closes the stream with UNAUTHENTICATED. A second stream of the same
   // agent closes the first with ABORTED, and so do DeleteApp and RevokeAppKey. An App that is not
-  // an agent gets FAILED_PRECONDITION with the reason NOT_A_RUNNER. An agent with the role
+  // an agent gets FAILED_PRECONDITION with the reason NOT_A_RUNNER. An agent with a protocol
+  // older than the minimum of the server gets FAILED_PRECONDITION with the reason AGENT_TOO_OLD
+  // after its Hello, with the metadata protocol and min. An agent with the role
   // runner in its workspace gets the pending jobs of the workspace, while it runs fewer jobs
   // than its capacity. An event or a log of a job that the agent must not run gives a Cancel.
   rpc OpenStream(stream OpenStreamRequest) returns (stream OpenStreamResponse);
@@ -100,9 +102,12 @@ message OpenStreamResponse {
 message Welcome {
   // The expiry of the token of the stream. Send a Renew before it.
   google.protobuf.Timestamp expires_at = 1;
+  // The agent protocols that the server takes. An agent with a protocol older than current
+  // gets only the jobs that it can run, and tells its user to update it.
+  scylla.apps.v1.AgentProtocolRange agent_protocol = 2;
   // The time between two Metrics, in seconds. The agent sends the first one at once. 0: the
   // server takes no Metrics, so the agent sends none.
-  uint32 metrics_interval_seconds = 2;
+  uint32 metrics_interval_seconds = 3;
 }
 
 // The answer to a Renew: the stream uses the new token.

@@ -72,6 +72,10 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   pull request and tag triggers, and the checkout in a dispatch.
 - `ListConnectionRepositoriesRequest` has an optional `workspace_id`. It replaces `project_id` to
   list the repositories of a connection for a project that does not exist yet.
+- `Host.protocol` and `Host.build`: the agent protocol and the build commit of an agent. `Welcome`
+  and `GetCapabilities` give the agent protocols of the server (`AgentProtocolRange`).
+  `App.compatibility` and `App.missing_features` tell how an agent fits the server.
+  `Job.unfit_agents` names the online agents that cannot get the code of a waiting job, and why.
 - `Workspace.time_zone`: the IANA time zone of a workspace, `UTC` for a new workspace.
   `UpdateWorkspace` changes it with `time_zone`, and a name that is not an IANA name gives
   `INVALID_ARGUMENT` on `time_zone`.
