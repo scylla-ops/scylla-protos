@@ -96,6 +96,10 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   agent, in buckets. The agent sends `Metrics` at the interval of
   `Welcome.metrics_interval_seconds`. `Host.started_at` tells the start of the agent, and
   `App.last_sample` gives its last sample.
+- `TriggerService` has `ListWorkspaceTriggers`, `ListTriggerFires` and `GetTriggerFireStats`: the
+  triggers of a workspace with their next fires, the history of their fires and of the missed cron
+  times, and their counts. `FireStatus` has `FIRE_STATUS_MISSED`. A cron schedule uses the time zone
+  of the workspace.
 
 ### Removed
 

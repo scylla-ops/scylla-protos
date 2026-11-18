@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/pipelines/v1/job.proto";
+import "scylla/pipelines/v1/trigger.proto";
+import "scylla/pipelines/v1/trigger_fire.proto";
+
+// A trigger with its next fires and its recent results, for the dashboard.
+message TriggerSummary {
+  // The trigger.
+  Trigger trigger = 1;
+  // The display name of the pipeline.
+  string pipeline_name = 2;
+  // The display name of the project.
+  string project_name = 3;
+  // The next fires of an enabled cron trigger of an active pipeline in the upcoming window of the
+  // request, oldest first, at most 48. The server computes them in the time zone of the
+  // workspace. Empty for another trigger.
+  repeated google.protobuf.Timestamp upcoming_fires = 4;
+  // The state now of the newest job of the trigger. JOB_STATUS_UNSPECIFIED: no job.
+  JobStatus last_job_status = 5;
+  // The newest fire or missed time of the trigger. Not set when the trigger has none.
+  TriggerFire last_fire = 6;
+  // The fires of the trigger that ran but made no job ("fire failed"), since the time of the
+  // request.
+  uint32 failed_fires = 7;
+  // The cron times of the trigger that the server missed ("time missed"), since the time of the
+  // request.
+  uint32 missed_times = 8;
+}
+
+// The order of a list of trigger summaries.
+enum TriggerOrder {
+  // TRIGGER_ORDER_NEXT_FIRE.
+  TRIGGER_ORDER_UNSPECIFIED = 0;
+  // The soonest next fire first, then the name. A trigger with no next fire comes last.
+  TRIGGER_ORDER_NEXT_FIRE = 1;
+  // The name, from A to Z, with no difference between upper and lower case.
+  TRIGGER_ORDER_NAME = 2;
+}
