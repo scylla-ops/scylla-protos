@@ -89,6 +89,8 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   pipeline, agent or origin, and the previous period. New messages `JobFigures`, `JobBucket` and
   `JobGroup`, and new enums `JobStatsBucket`, `JobStatsGroup` and `JobStatsOrder`. `JobOutcomes`
   moves from `scylla.agents.v1` to `scylla.pipelines.v1`, with the same fields.
+- `DashboardService` keeps the saved layouts of the dashboard of a workspace: list, get, create,
+  change at the version that the client read, delete, and the team default of the workspace.
 
 ### Removed
 
