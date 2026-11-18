@@ -57,6 +57,31 @@ message Job {
   // code is online). Empty for another job, and in the answers of RunPipeline and
   // FireTriggerNow: read the job again.
   string waiting_reason = 21;
+  // With the waiting reason NO_AGENT_WITH_CHECKOUT: the online agents of the workspace that
+  // cannot get the code, and why. Empty for another job.
+  repeated UnfitAgent unfit_agents = 22;
+}
+
+// An online agent that cannot run a pending job.
+message UnfitAgent {
+  // The App of the agent.
+  scylla.common.v1.Id id = 1;
+  // The display name of the App.
+  string name = 2;
+  // The version of the agent.
+  string version = 3;
+  // Why the agent cannot run the job.
+  UnfitReason reason = 4;
+}
+
+// Why an online agent cannot run a job.
+enum UnfitReason {
+  // Not used.
+  UNFIT_REASON_UNSPECIFIED = 0;
+  // The protocol of the agent is too old for the job: update the agent.
+  UNFIT_REASON_UPDATE_AGENT = 1;
+  // The agent has the protocol, but git does not run on its machine: install git there.
+  UNFIT_REASON_INSTALL_GIT = 2;
 }
 
 // The state of a job.
