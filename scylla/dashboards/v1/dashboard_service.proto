@@ -2,8 +2,10 @@ syntax = "proto3";
 
 package scylla.dashboards.v1;
 
+import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
+import "scylla/dashboards/v1/attention.proto";
 import "scylla/dashboards/v1/dashboard.proto";
 
 // Creates, reads, changes, lists and deletes the saved layouts of the dashboard of a workspace,
@@ -40,6 +42,17 @@ service DashboardService {
   // stops being the default. An id that is not a shared dashboard of the workspace, for example
   // a private dashboard, gives NOT_FOUND.
   rpc SetTeamDefaultDashboard(SetTeamDefaultDashboardRequest) returns (SetTeamDefaultDashboardResponse);
+  // Lists the open items of a workspace that need a person ("Needs you"), newest first, with
+  // their counts. Each caller lists the items that it can read, so the route permission
+  // list_attention_items is on the caller itself, and a filter never causes a refusal. A kind
+  // that the caller cannot read is not in the answer: the jobs that failed or lost their agent
+  // need list_workspace_jobs on their project or on the workspace (for example the role viewer),
+  // the fires need list_trigger_fires, the agents need list_apps on the workspace, and the jobs
+  // that wait for an approval need approve_job (for example the roles editor and member). A failed
+  // or orphaned job and a fire stay items for at most 30 days, and an archived pipeline has none
+  // of them. A bad id, more than 100 project ids, an unknown kind or a bad page token give
+  // INVALID_ARGUMENT.
+  rpc ListAttentionItems(ListAttentionItemsRequest) returns (ListAttentionItemsResponse);
 }
 
 // The input of ListDashboards.
@@ -132,4 +145,37 @@ message SetTeamDefaultDashboardRequest {
 message SetTeamDefaultDashboardResponse {
   // The team default dashboard. Not set when the request removes the team default.
   Dashboard dashboard = 1;
+}
+
+// The input of ListAttentionItems.
+message ListAttentionItemsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // Only the items of these projects, at most 100. Empty: each project. An agent is in no
+  // project, so a filter of projects gives no agent.
+  repeated scylla.common.v1.Id project_ids = 2;
+  // Only the items of these kinds. Empty: each kind.
+  repeated AttentionKind kinds = 3;
+  // The last visit of the caller: the items after it are new. Not set: no item is new.
+  google.protobuf.Timestamp since = 4;
+  // The page.
+  scylla.common.v1.PageRequest page = 5;
+}
+
+// The output of ListAttentionItems.
+message ListAttentionItemsResponse {
+  // The items of the page, newest first.
+  repeated AttentionItem items = 1;
+  // The open items of each kind that the request asks and that the caller can read, in the order
+  // of AttentionKind, for all the pages. A kind with no open item has the count 0.
+  repeated AttentionCount counts = 2;
+  // The open items of all the kinds in counts.
+  uint32 open_count = 3;
+  // The open items of all the kinds in counts after the since time of the request.
+  uint32 new_count = 4;
+  // The last time when an open item of a job or of a fire went away, in the last 30 days. Not set
+  // when none did. An agent that connects again is not in it.
+  google.protobuf.Timestamp last_cleared_at = 5;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 6;
 }

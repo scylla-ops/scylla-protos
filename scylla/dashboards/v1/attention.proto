@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package scylla.dashboards.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/pipelines/v1/job.proto";
+import "scylla/pipelines/v1/trigger_fire.proto";
+
+// An open item that needs a person ("Needs you"). It goes away by itself when its cause is fixed:
+// a person cannot dismiss it.
+message AttentionItem {
+  // The kind.
+  AttentionKind kind = 1;
+  // The time of the item: the end of a failed or orphaned job, the creation of a job that waits
+  // for an approval, the due time of a fire, or the last seen time of an agent.
+  google.protobuf.Timestamp at = 2;
+  // True when at is after the since time of the request: the item is new since the last visit.
+  bool is_new = 3;
+  // The open items of the same subject and kind that this item stands for, with this item: 1 or
+  // more. An item of a job stands for the failed (or orphaned) jobs of its pipeline and branch
+  // after their last completed job. An item of a fire stands for the failed fires (or missed
+  // times) of its trigger after its last good fire.
+  uint32 count = 4;
+  // The project. Not set for an agent.
+  scylla.common.v1.Id project_id = 5;
+  // The display name of the project. Empty for an agent.
+  string project_name = 6;
+  // The pipeline. Not set for an agent.
+  scylla.common.v1.Id pipeline_id = 7;
+  // The display name of the pipeline. Empty for an agent.
+  string pipeline_name = 8;
+  // What the item is about.
+  oneof subject {
+    // The job of an item of the kinds JOB_FAILED, JOB_ORPHANED and APPROVAL_WAITING: the newest
+    // job of the item.
+    AttentionJob job = 9;
+    // The fire of an item of the kinds FIRE_FAILED and FIRE_MISSED: the newest fire of the item.
+    AttentionFire fire = 10;
+    // The agent of an item of the kind AGENT_OFFLINE.
+    AttentionAgent agent = 11;
+  }
+}
+
+// The job of an item. A job has no number: it is its id.
+message AttentionJob {
+  // The id of the job.
+  scylla.common.v1.Id id = 1;
+  // The state of the job now.
+  scylla.pipelines.v1.JobStatus status = 2;
+  // The error of the job. Empty when the job has none.
+  string error = 3;
+  // The branch of the commit of the job. Empty for a job with no branch.
+  string branch = 4;
+  // The agent of the job. Not set when no agent took the job, or when the agent was deleted.
+  scylla.common.v1.Id agent_id = 5;
+  // The display name of the agent. Empty when agent_id is not set.
+  string agent_name = 6;
+  // The node that failed, or the node that ran when the agent went away. Not set for a job with
+  // no such node: for example a failed checkout, a pipeline file with errors, or a job that waits
+  // for an approval.
+  AttentionNode node = 7;
+}
+
+// The node of a job of an item.
+message AttentionNode {
+  // The id of the node in the pipeline.
+  string node_id = 1;
+  // The error of the node. Empty when the node has none.
+  string error = 2;
+  // The attempt of the node, from 1.
+  uint32 attempt = 3;
+  // The most attempts of the node: 1 and its retries.
+  uint32 max_attempts = 4;
+  // The longest run of one attempt, in seconds.
+  uint32 timeout_seconds = 5;
+}
+
+// The fire of an item: a fire that ran and made no job, or a cron time that the server missed.
+message AttentionFire {
+  // The id of the fire.
+  scylla.common.v1.Id id = 1;
+  // The trigger.
+  scylla.common.v1.Id trigger_id = 2;
+  // The display name of the trigger.
+  string trigger_name = 3;
+  // The cron schedule of the trigger. Empty for another kind of trigger.
+  string schedule = 4;
+  // What started the fire.
+  scylla.pipelines.v1.FireSource source = 5;
+  // The reason of a fire that failed. Empty for a missed time.
+  string error = 6;
+}
+
+// The agent of an item: an enabled agent that is not connected.
+message AttentionAgent {
+  // The id of the agent.
+  scylla.common.v1.Id id = 1;
+  // The display name of the agent.
+  string name = 2;
+  // The last time when the server saw the agent.
+  google.protobuf.Timestamp last_seen_at = 3;
+}
+
+// The open items of one kind.
+message AttentionCount {
+  // The kind.
+  AttentionKind kind = 1;
+  // The open items of the kind.
+  uint32 open_count = 2;
+  // The open items of the kind after the since time of the request.
+  uint32 new_count = 3;
+}
+
+// The kind of an item.
+enum AttentionKind {
+  // Not used. In a filter: not allowed.
+  ATTENTION_KIND_UNSPECIFIED = 0;
+  // A job that failed. It goes away when a later job of the same pipeline and branch completes.
+  ATTENTION_KIND_JOB_FAILED = 1;
+  // A job whose agent went away. It goes away when a later job of the same pipeline and branch
+  // completes.
+  ATTENTION_KIND_JOB_ORPHANED = 2;
+  // A fire of a trigger that ran and made no job ("fire failed"). It goes away at the next good
+  // fire of the trigger.
+  ATTENTION_KIND_FIRE_FAILED = 3;
+  // A cron time that the server missed, for example while it was down ("time missed"). It goes
+  // away at the next good fire of the trigger.
+  ATTENTION_KIND_FIRE_MISSED = 4;
+  // An enabled agent that is not connected for more than 5 minutes. It goes away when the agent
+  // connects again.
+  ATTENTION_KIND_AGENT_OFFLINE = 5;
+  // A job from a fork that waits for an approval. It goes away when a person approves or rejects
+  // it, or when a new commit of its pull request replaces it.
+  ATTENTION_KIND_APPROVAL_WAITING = 6;
+}

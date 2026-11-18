@@ -103,6 +103,10 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - `VcsConnectionService` has `GetDeliveryStats`: the counts of the webhook deliveries of a workspace
   for a period, for each connection with its newest delivery, for each webhook trigger, and by hour,
   day or week in the time zone of the workspace.
+- `DashboardService.ListAttentionItems` gives the open items of a workspace that need a person
+  ("Needs you"), newest first, with the counts of each kind and the items that are new since the
+  last visit. New messages `AttentionItem`, `AttentionJob`, `AttentionNode`, `AttentionFire`,
+  `AttentionAgent` and `AttentionCount`, and the new enum `AttentionKind`.
 
 ### Removed
 
