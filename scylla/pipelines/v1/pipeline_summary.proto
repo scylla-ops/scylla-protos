@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/pipelines/v1/job.proto";
+import "scylla/pipelines/v1/trigger.proto";
+
+// A pipeline with its recent jobs, its health and its triggers, for the dashboard.
+message PipelineSummary {
+  // The pipeline.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The display name of the pipeline.
+  string name = 2;
+  // The project of the pipeline.
+  scylla.common.v1.Id project_id = 3;
+  // The display name of the project.
+  string project_name = 4;
+  // The last jobs of the pipeline, newest first: at most the run count of the request.
+  repeated RecentJob recent = 5;
+  // The recent jobs that completed.
+  uint32 completed = 6;
+  // The recent jobs that failed or were orphaned. The success rate is completed / (completed +
+  // failed): a cancelled job does not count.
+  uint32 failed = 7;
+  // The median duration, from the start to the end, of the recent jobs that completed. Not set
+  // when no recent job completed.
+  google.protobuf.Duration median_duration = 8;
+  // The status of the last ended job of the default branch of the linked repository. For a
+  // project with no linked repository, the status of the last ended job. The last job is the
+  // newest by creation. The pipeline is green when it is JOB_STATUS_COMPLETED, and red for
+  // another status. JOB_STATUS_UNSPECIFIED: no such job.
+  JobStatus last_ended_status = 9;
+  // True when a job of the pipeline runs, or waits for an agent or for an approval.
+  bool active = 10;
+  // The kinds of the triggers that can start a job, each kind one time, in the order of
+  // TriggerKind: the enabled triggers, and the on section of a pipeline file. An archived
+  // pipeline and a file pipeline whose file left the default branch have none. Empty: only
+  // RunPipeline starts the pipeline.
+  repeated TriggerKind trigger_kinds = 11;
+  // The next fire of the enabled cron triggers. Not set when the pipeline has no such fire.
+  NextFire next_fire = 12;
+}
+
+// One recent job of a pipeline.
+message RecentJob {
+  // The job.
+  scylla.common.v1.Id id = 1;
+  // The state of the job.
+  JobStatus status = 2;
+  // The branch of the commit of the job. Empty for a job of a tag or a job with no source.
+  string branch = 3;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 4;
+  // The start on the agent. Not set before the start.
+  google.protobuf.Timestamp started_at = 5;
+  // The end. Not set before the end.
+  google.protobuf.Timestamp finished_at = 6;
+}
+
+// The next fire of a cron trigger of a pipeline.
+message NextFire {
+  // The trigger.
+  scylla.common.v1.Id trigger_id = 1;
+  // The schedule of 5 cron fields, for example "0 3 * * 1-5".
+  string schedule = 2;
+  // The time of the fire.
+  google.protobuf.Timestamp at = 3;
+}
+
+// The order of a list of pipeline summaries.
+enum PipelineSummaryOrder {
+  // PIPELINE_SUMMARY_ORDER_FAILING_FIRST.
+  PIPELINE_SUMMARY_ORDER_UNSPECIFIED = 0;
+  // The red pipelines first, then the pipelines with no ended job, then the green pipelines. In
+  // each group, the lowest success rate first, then the name.
+  PIPELINE_SUMMARY_ORDER_FAILING_FIRST = 1;
+  // The longest median duration first, then the name. A pipeline with no median comes last.
+  PIPELINE_SUMMARY_ORDER_SLOWEST = 2;
+  // The name, from A to Z, with no difference between upper and lower case.
+  PIPELINE_SUMMARY_ORDER_NAME = 3;
+}

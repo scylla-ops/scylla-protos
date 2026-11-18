@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/pipelines/v1/job.proto";
+import "scylla/pipelines/v1/trigger.proto";
+
+// One fire of a trigger, or one cron time that the server missed. The server keeps them for 30
+// days. A webhook fire is kept only after the check of its signature.
+message TriggerFire {
+  // The id of the fire.
+  scylla.common.v1.Id id = 1;
+  // The trigger.
+  scylla.common.v1.Id trigger_id = 2;
+  // The display name of the trigger.
+  string trigger_name = 3;
+  // The pipeline of the trigger.
+  scylla.common.v1.Id pipeline_id = 4;
+  // The project of the pipeline.
+  scylla.common.v1.Id project_id = 5;
+  // What started the fire.
+  FireSource source = 6;
+  // The time when the fire was due: the cron time of a schedule, else the time of the request.
+  google.protobuf.Timestamp due_at = 7;
+  // The start of the fire. Not set for a missed time.
+  google.protobuf.Timestamp fired_at = 8;
+  // The result: FIRE_STATUS_OK, FIRE_STATUS_ERROR or FIRE_STATUS_MISSED.
+  FireStatus status = 9;
+  // The reason of a fire that failed. Empty for another status.
+  string error = 10;
+  // The job of the fire. Not set when the fire made no job, or when the job was deleted.
+  scylla.common.v1.Id job_id = 11;
+  // The state of the job now. JOB_STATUS_UNSPECIFIED when job_id is not set.
+  JobStatus job_status = 12;
+}
+
+// What started a fire of a trigger.
+enum FireSource {
+  // Not used.
+  FIRE_SOURCE_UNSPECIFIED = 0;
+  // The cron schedule of the trigger.
+  FIRE_SOURCE_SCHEDULE = 1;
+  // A signed request to the webhook route of the trigger.
+  FIRE_SOURCE_WEBHOOK = 2;
+  // A call of FireTriggerNow.
+  FIRE_SOURCE_MANUAL = 3;
+}
+
+// The counts of a set of fires.
+message TriggerFireFigures {
+  // Each fire and each missed time of the set.
+  uint32 total = 1;
+  // The fires that made a job.
+  uint32 ok = 2;
+  // The fires that ran but made no job ("fire failed").
+  uint32 failed_fires = 3;
+  // The cron times that the server missed ("time missed").
+  uint32 missed_times = 4;
+  // The median delay of the fires of a schedule, from the cron time to the start of the fire. Not
+  // set when no fire of a schedule ran.
+  google.protobuf.Duration p50_delay = 5;
+  // The 95th percentile of the same delays. Not set when no fire of a schedule ran.
+  google.protobuf.Duration p95_delay = 6;
+}
+
+// The fires of one hour, day or week of the period.
+message TriggerFireBucket {
+  // The start of the hour, day or week in the time zone of the workspace. The first bucket can
+  // start before from: it counts the fires from from.
+  google.protobuf.Timestamp start = 1;
+  // The fires that were due in the bucket.
+  TriggerFireFigures figures = 2;
+}
+
+// The fires of one trigger, pipeline or project.
+message TriggerFireGroup {
+  // The trigger, the pipeline or the project.
+  scylla.common.v1.Id id = 1;
+  // The fires of the group in the period.
+  TriggerFireFigures figures = 2;
+}
+
+// The size of the buckets of the fire stats.
+enum FireStatsBucket {
+  // No bucket.
+  FIRE_STATS_BUCKET_UNSPECIFIED = 0;
+  // One bucket for each hour.
+  FIRE_STATS_BUCKET_HOUR = 1;
+  // One bucket for each day, from 00:00.
+  FIRE_STATS_BUCKET_DAY = 2;
+  // One bucket for each week, from Monday 00:00.
+  FIRE_STATS_BUCKET_WEEK = 3;
+}
+
+// What makes the groups of the fire stats.
+enum FireStatsGroup {
+  // No group.
+  FIRE_STATS_GROUP_UNSPECIFIED = 0;
+  // One group for each trigger.
+  FIRE_STATS_GROUP_TRIGGER = 1;
+  // One group for each pipeline.
+  FIRE_STATS_GROUP_PIPELINE = 2;
+  // One group for each project.
+  FIRE_STATS_GROUP_PROJECT = 3;
+}

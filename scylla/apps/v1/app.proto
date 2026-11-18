@@ -41,6 +41,9 @@ message App {
   // The features that the server can need and that the agent does not tell, for example
   // checkout. Empty before the first stream.
   repeated string missing_features = 13;
+  // The last sample of the use of the machine of the agent, of the last 7 days. Not set when the
+  // agent sent none. AgentService.GetAgentMetrics gives the samples of a period.
+  HostSample last_sample = 14;
 }
 
 // How an agent fits the server.
@@ -94,6 +97,18 @@ message Host {
   uint32 protocol = 10;
   // The commit of the build of the agent. Empty for a build with no commit.
   string build = 11;
+  // The start of the process of the agent. Not set by an agent of an older version.
+  google.protobuf.Timestamp started_at = 12;
+}
+
+// A sample of the use of the machine of an agent.
+message HostSample {
+  // The time when the server got the sample.
+  google.protobuf.Timestamp at = 1;
+  // The use of all the CPUs of the machine, in percent: 0 to 100.
+  float cpu_percent = 2;
+  // The memory in use on the machine, in bytes. Compare with host.memory_bytes.
+  uint64 memory_used_bytes = 3;
 }
 
 // A public key of an App.

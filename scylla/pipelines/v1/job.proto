@@ -54,12 +54,15 @@ message Job {
   // The checkout of the code before the first node. Not set for a job with no checkout.
   CheckoutRun checkout = 20;
   // Why a pending job waits, as a stable code: NO_AGENT_WITH_CHECKOUT (no agent that can get the
-  // code is online). Empty for another job, and in the answers of RunPipeline and
-  // FireTriggerNow: read the job again.
+  // code is online) or NO_AGENT_WITH_CONTAINER (no agent with a container runtime, and with the
+  // checkout when the job gets the code, is online). Empty for another job, and in the answers of
+  // RunPipeline and FireTriggerNow: read the job again.
   string waiting_reason = 21;
   // With the waiting reason NO_AGENT_WITH_CHECKOUT: the online agents of the workspace that
   // cannot get the code, and why. Empty for another job.
   repeated UnfitAgent unfit_agents = 22;
+  // What started the job. The server sets it at the creation, and it does not change.
+  JobOrigin origin = 23;
 }
 
 // An online agent that cannot run a pending job.
@@ -82,6 +85,31 @@ enum UnfitReason {
   UNFIT_REASON_UPDATE_AGENT = 1;
   // The agent has the protocol, but git does not run on its machine: install git there.
   UNFIT_REASON_INSTALL_GIT = 2;
+}
+
+// What started a job.
+enum JobOrigin {
+  // Not used. In a filter: not allowed.
+  JOB_ORIGIN_UNSPECIFIED = 0;
+  // A person in the web app, with RunPipeline or FireTriggerNow.
+  JOB_ORIGIN_MANUAL = 1;
+  // A client with no session of a person, with RunPipeline or FireTriggerNow: an API token, a
+  // personal token or an App.
+  JOB_ORIGIN_API = 2;
+  // A new run of a job with RerunJob.
+  JOB_ORIGIN_RERUN = 3;
+  // A cron trigger at its time.
+  JOB_ORIGIN_CRON = 4;
+  // A webhook trigger that got a call.
+  JOB_ORIGIN_WEBHOOK = 5;
+  // A push to a branch of the linked repository.
+  JOB_ORIGIN_PUSH = 6;
+  // A pull request or a merge request of the linked repository.
+  JOB_ORIGIN_PULL_REQUEST = 7;
+  // A push of a tag to the linked repository.
+  JOB_ORIGIN_TAG = 8;
+  // A person asked for a new run on the provider, for example with Re-run on GitHub.
+  JOB_ORIGIN_PROVIDER_RERUN = 9;
 }
 
 // The state of a job.
@@ -123,6 +151,8 @@ message NodeRun {
   optional int32 exit_code = 6;
   // The error of a failed node. Empty for another node.
   string error = 7;
+  // The most attempts of the node: 1 and its retries.
+  uint32 max_attempts = 8;
 }
 
 // The checkout of the code of a job, before its first node. Its log lines have the node id

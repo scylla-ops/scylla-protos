@@ -43,7 +43,8 @@ message Trigger {
   google.protobuf.Timestamp next_fire_at = 11;
   // The last fire.
   google.protobuf.Timestamp last_fired_at = 12;
-  // The result of the last fire.
+  // The result of the last fire: FIRE_STATUS_OK or FIRE_STATUS_ERROR. A missed time does not
+  // change it.
   FireStatus last_status = 13;
   // The reason of a last fire that failed.
   string last_error = 14;
@@ -55,7 +56,11 @@ message Trigger {
   bool from_file = 20;
 }
 
-// A schedule of 5 cron fields (minute, hour, day of the month, month, day of the week), in UTC.
+// A schedule of 5 cron fields (minute, hour, day of the month, month, day of the week), in the
+// time zone of the workspace. On the night of the change to summer time, a time that does not
+// exist does not fire. On the night of the change to winter time, a time that occurs two times
+// fires one time, at its first occurrence. A change of the time zone of the workspace computes the
+// next fire again.
 message Cron {
   // The schedule, for example "0 3 * * 1-5".
   string schedule = 1;
@@ -127,12 +132,31 @@ message TriggerInput {
   }
 }
 
-// The result of the last fire of a trigger.
+// The result of a fire of a trigger.
 enum FireStatus {
   // No fire yet.
   FIRE_STATUS_UNSPECIFIED = 0;
   // The fire made a job.
   FIRE_STATUS_OK = 1;
-  // The fire failed. last_error tells why.
+  // The fire ran but made no job ("fire failed"). The error tells why.
   FIRE_STATUS_ERROR = 2;
+  // The server was down at the cron time, so the time did not fire ("time missed"). Only a
+  // TriggerFire has this status.
+  FIRE_STATUS_MISSED = 3;
+}
+
+// The kind of a trigger: what starts its jobs.
+enum TriggerKind {
+  // Not used.
+  TRIGGER_KIND_UNSPECIFIED = 0;
+  // A schedule.
+  TRIGGER_KIND_CRON = 1;
+  // A webhook.
+  TRIGGER_KIND_WEBHOOK = 2;
+  // A push to a branch of the linked repository.
+  TRIGGER_KIND_PUSH = 3;
+  // A pull request of the linked repository.
+  TRIGGER_KIND_PULL_REQUEST = 4;
+  // A push of a tag of the linked repository.
+  TRIGGER_KIND_TAG = 5;
 }
