@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package scylla.activity.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/activity/v1/activity.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/common/v1/page.proto";
+
+// The activity feed of a workspace: the changes of its jobs, triggers, secrets, members, Git
+// connections and agents. Each RPC needs an authenticated actor, else UNAUTHENTICATED.
+service ActivityService {
+  // Lists the activity of a workspace, newest first, in the areas and the projects that the caller
+  // can read. A row of jobs, triggers or secrets needs the read permission of its area on its
+  // project or on the workspace: list_workspace_jobs, list_pipeline_triggers or list_secrets. A
+  // row of members, integrations or agents needs it on the workspace: list_members,
+  // list_vcs_connections or list_agent_stats. The route permission is list_activity, on the
+  // caller. A caller with no role, or an unknown workspace, gets an empty list. The server keeps a
+  // row for 30 days. No workspace_id, a negative page size or a bad page token gives
+  // INVALID_ARGUMENT.
+  rpc ListActivity(ListActivityRequest) returns (ListActivityResponse);
+}
+
+// The input of ListActivity.
+message ListActivityRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The page.
+  scylla.common.v1.PageRequest page = 2;
+  // Counts the rows at this time or later in since_count, for example since the last visit of the
+  // caller. Not set gives no count.
+  google.protobuf.Timestamp since = 3;
+}
+
+// The output of ListActivity.
+message ListActivityResponse {
+  // The rows of the page, newest first.
+  repeated Activity activities = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+  // The number of rows that the caller can read at since or later, in each page. The count stops
+  // at 100. 0 if since is not set.
+  int32 since_count = 3;
+}

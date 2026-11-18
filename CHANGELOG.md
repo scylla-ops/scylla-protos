@@ -107,6 +107,10 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   ("Needs you"), newest first, with the counts of each kind and the items that are new since the
   last visit. New messages `AttentionItem`, `AttentionJob`, `AttentionNode`, `AttentionFire`,
   `AttentionAgent` and `AttentionCount`, and the new enum `AttentionKind`.
+- `ActivityService.ListActivity` gives the activity feed of a workspace: the end of each job and
+  each change of the triggers, the secrets, the members, the Git connections and the agents, newest
+  first, with pages and the count of the rows since a time. A row shows only to a caller that can
+  read its area.
 
 ### Removed
 
