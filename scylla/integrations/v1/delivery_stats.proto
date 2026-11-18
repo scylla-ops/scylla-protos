@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package scylla.integrations.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// The counts of a set of webhook deliveries. The server keeps a delivery only after the check of
+// its signature, so a delivery with a bad signature is not in the counts.
+message DeliveryFigures {
+  // Each delivery that the server kept, also the failed ones.
+  uint32 delivered = 1;
+  // The deliveries that arrived but whose work failed: a Git event that did not run, or a fire of
+  // a webhook trigger that made no job.
+  uint32 failed = 2;
+}
+
+// The deliveries of one GitHub or GitLab connection in the period.
+message ConnectionDeliveries {
+  // The connection.
+  scylla.common.v1.Id connection_id = 1;
+  // The webhook deliveries of the connection, and the new heads that its polls found.
+  DeliveryFigures figures = 2;
+  // The arrival of the newest delivery of the period.
+  google.protobuf.Timestamp last_received_at = 3;
+  // The event of the newest delivery, for example push or pull_request.
+  string last_event = 4;
+  // The full name of the repository of the newest delivery, for example acme/api. Empty when the
+  // delivery is not a Git event.
+  string last_repository = 5;
+  // The Git ref of the newest delivery, for example refs/heads/main. Empty when the delivery is
+  // not a Git event.
+  string last_ref = 6;
+}
+
+// The deliveries of one webhook trigger in the period: the fires of its webhook route.
+message TriggerDeliveries {
+  // The trigger.
+  scylla.common.v1.Id trigger_id = 1;
+  // The deliveries of the trigger.
+  DeliveryFigures figures = 2;
+  // The arrival of the newest delivery of the period.
+  google.protobuf.Timestamp last_received_at = 3;
+}
+
+// The deliveries of one hour, day or week of the period.
+message DeliveryBucket {
+  // The start of the hour, day or week in the time zone of the workspace. The first bucket can
+  // start before from: it counts the deliveries from from.
+  google.protobuf.Timestamp start = 1;
+  // The deliveries of the connections and of the webhook triggers that arrived in the bucket.
+  DeliveryFigures figures = 2;
+}
+
+// The size of the buckets of the delivery stats.
+enum DeliveryStatsBucket {
+  // No bucket.
+  DELIVERY_STATS_BUCKET_UNSPECIFIED = 0;
+  // One bucket for each hour.
+  DELIVERY_STATS_BUCKET_HOUR = 1;
+  // One bucket for each day, from 00:00.
+  DELIVERY_STATS_BUCKET_DAY = 2;
+  // One bucket for each week, from Monday 00:00.
+  DELIVERY_STATS_BUCKET_WEEK = 3;
+}

@@ -5,6 +5,7 @@ package scylla.integrations.v1;
 import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
+import "scylla/integrations/v1/delivery_stats.proto";
 import "scylla/integrations/v1/vcs.proto";
 
 // Connects a workspace to GitHub and GitLab, and lists the repositories of a connection. Each
@@ -62,6 +63,15 @@ service VcsConnectionService {
   // permission is list_connection_repositories: on the project, its editors; on the workspace,
   // its members.
   rpc ListConnectionRepositories(ListConnectionRepositoriesRequest) returns (ListConnectionRepositoriesResponse);
+  // Returns the counts of the webhook deliveries of a workspace for a period: the totals, each
+  // connection, each webhook trigger and the buckets. A delivery counts in the period of its
+  // arrival. The hours, days and weeks are in the time zone of the workspace. The triggers are
+  // the webhook triggers of the projects whose fires the caller can count with
+  // GetTriggerFireStats. The server keeps the deliveries and the fires for 30 days: a period that
+  // starts before has no older delivery. No from, a to that is not after from, a period of more
+  // than 400 days, or more than 1000 buckets gives INVALID_ARGUMENT. The route permission is
+  // get_delivery_stats: the readers of the workspace.
+  rpc GetDeliveryStats(GetDeliveryStatsRequest) returns (GetDeliveryStatsResponse);
 }
 
 // The input of GetVcsProviders.
@@ -199,4 +209,32 @@ message ListConnectionRepositoriesResponse {
   repeated Repository repositories = 1;
   // How to get the next page.
   scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of GetDeliveryStats.
+message GetDeliveryStatsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The start of the period: the deliveries that arrived at this time or later. Required.
+  google.protobuf.Timestamp from = 2;
+  // The end of the period: the deliveries that arrived before this time. Not set: now.
+  google.protobuf.Timestamp to = 3;
+  // The size of the buckets. Not set gives no bucket.
+  DeliveryStatsBucket bucket = 4;
+}
+
+// The output of GetDeliveryStats.
+message GetDeliveryStatsResponse {
+  // The deliveries of the period: the connections and the webhook triggers.
+  DeliveryFigures totals = 1;
+  // Each connection with a delivery in the period, oldest connection first.
+  repeated ConnectionDeliveries connections = 2;
+  // Each webhook trigger with a delivery in the period: the most failed deliveries first, then
+  // the most deliveries.
+  repeated TriggerDeliveries triggers = 3;
+  // Each bucket of the period, oldest first, also the buckets with no delivery.
+  repeated DeliveryBucket buckets = 4;
+  // The IANA time zone of the workspace, for example Europe/Paris: the buckets start at the
+  // hours, days and weeks of this zone.
+  string time_zone = 5;
 }

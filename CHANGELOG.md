@@ -100,6 +100,9 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   triggers of a workspace with their next fires, the history of their fires and of the missed cron
   times, and their counts. `FireStatus` has `FIRE_STATUS_MISSED`. A cron schedule uses the time zone
   of the workspace.
+- `VcsConnectionService` has `GetDeliveryStats`: the counts of the webhook deliveries of a workspace
+  for a period, for each connection with its newest delivery, for each webhook trigger, and by hour,
+  day or week in the time zone of the workspace.
 
 ### Removed
 
