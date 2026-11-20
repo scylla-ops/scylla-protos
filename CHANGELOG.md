@@ -12,6 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 - **Breaking:** the API of the new backend replaces the API of the old server. It keeps no
   compatibility, so the check of breaking changes is removed from the repository.
 - Ids are opaque, in one message (`scylla.common.v1.Id`), and lists use keyset pages.
+- `StartGitHubInstall` gives the authorize page of the GitHub App. After this page,
+  `CompleteGitHubInstall` gives the installations that the user can connect (`choice`), or the
+  connection.
 
 ### Added
 
