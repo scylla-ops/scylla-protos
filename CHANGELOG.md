@@ -58,6 +58,7 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   and `JobEvent.ports` give the ports that a switch opened. In `agents/v1` the change is additive:
   `DispatchNode.needs` keeps the node ids for an agent of v0.7.0-rc.1, `DispatchNode.links` has
   the needs with their ports, and `Hello.conditional_nodes` tells that an agent runs them.
+  `ExportPipeline` refuses a pipeline with conditional nodes (`CONDITIONAL_NODES`).
 - The places of the nodes on the canvas: `SavePipelineLayout`, and a `layout` field in `GetPipeline`,
   `CreatePipeline` and `UpdatePipeline`.
 - Cron and webhook triggers.
