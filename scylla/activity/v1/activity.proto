@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package scylla.activity.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// One change in a workspace: a row of the activity feed. The row holds a kind and its parameters,
+// never a sentence: the client makes the text in the language of the reader.
+message Activity {
+  // The id of the row.
+  scylla.common.v1.Id id = 1;
+  // The kind, as <subject>.<action>. The list of the kinds is open: a client that does not know a
+  // kind shows a generic line. The kinds of the core, with their parameters:
+  // job.ended (status, pipeline, origin);
+  // trigger.created, trigger.updated, trigger.deleted, trigger.enabled, trigger.disabled,
+  // trigger.fire_failed and trigger.time_missed (name, pipeline, trigger_kind, schedule for a cron
+  // trigger, error for trigger.fire_failed, and count and last_due_at in Unix seconds for
+  // trigger.time_missed);
+  // secret.created, secret.updated and secret.deleted (name);
+  // member.joined (role, inviter), member.role_granted and member.role_revoked (role, name of the
+  // person or the App);
+  // connection.connected and connection.disconnected (provider, account), connection.broken
+  // (provider, account, reason), connection.repositories_changed (provider, account, added,
+  // removed);
+  // agent.connected (name, slots, added_by) and agent.disconnected (name).
+  string kind = 2;
+  // The area of the kind: jobs, triggers, secrets, members, integrations or agents.
+  string area = 3;
+  // The actor of the change: for job.ended, the author of the job. Not set if the change has no
+  // actor.
+  scylla.common.v1.Id actor_id = 4;
+  // The display name of the actor now. Empty if there is no actor or the actor has no name.
+  string actor_name = 5;
+  // The project of the change. Not set for a change of the workspace.
+  scylla.common.v1.Id project_id = 6;
+  // The name of the project now. Empty for a change of the workspace.
+  string project_name = 7;
+  // The kind of the object of the change: job, trigger, secret, user, vcs_connection or app.
+  // Empty if the change has no object. A role of an App has the object app.
+  string subject_kind = 8;
+  // The object of the change. It can be deleted after the change.
+  scylla.common.v1.Id subject_id = 9;
+  // The parameters of the kind, as they were at the time of the change. They never hold the value
+  // of a secret.
+  map<string, string> params = 10;
+  // The time of the change.
+  google.protobuf.Timestamp at = 11;
+}

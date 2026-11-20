@@ -68,9 +68,69 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - A disable and an enable of an App. Keys have names, and record their last use.
 - The API tokens of the Apps and their limits, and the CI identities.
 - The number of jobs that each agent holds, and its job stats.
+- `GetAgentStatsRequest` takes an optional period (`from`, `to`). With no period, the stats stay the
+  last 30 days.
+- `Member` and `RoleHolderEntry` have `runner`. It is true for an app that runs jobs (an agent), so
+  a client can tell an agent from another app.
+- The contract of the GitHub and GitLab integration: the services of `scylla.integrations.v1` and
+  `VcsAppService`, the source, the approval and the checkout of a job, the pipeline files, the push,
+  pull request and tag triggers, and the checkout in a dispatch.
+- `ListConnectionRepositoriesRequest` has an optional `workspace_id`. It replaces `project_id` to
+  list the repositories of a connection for a project that does not exist yet.
+- `Host.protocol` and `Host.build`: the agent protocol and the build commit of an agent. `Welcome`
+  and `GetCapabilities` give the agent protocols of the server (`AgentProtocolRange`).
+  `App.compatibility` and `App.missing_features` tell how an agent fits the server.
+  `Job.unfit_agents` names the online agents that cannot get the code of a waiting job, and why.
+- `Workspace.time_zone`: the IANA time zone of a workspace, `UTC` for a new workspace.
+  `UpdateWorkspace` changes it with `time_zone`, and a name that is not an IANA name gives
+  `INVALID_ARGUMENT` on `time_zone`.
+- `PipelineService.ListPipelineSummaries` gives the dashboard the pipelines of a workspace that the
+  caller can see, with their recent jobs, their health and their triggers. New messages
+  `PipelineSummary`, `RecentJob` and `NextFire`, and new enums `PipelineSummaryOrder` and
+  `TriggerKind`.
+- `Job.origin` (`JobOrigin`) tells what started a job. `JobFilter` filters on the states, the
+  origins and a range of the time of creation. `ListWorkspaceJobs` filters on projects and
+  pipelines, and the view `JOB_VIEW_SUMMARY` gives the jobs with no nodes. `NodeRun.max_attempts`
+  gives the most attempts of a node, and `waiting_reason` can be `NO_AGENT_WITH_CONTAINER`.
+- `JobService.GetJobStats` gives the dashboard the figures of the jobs of a workspace that the
+  caller can see for a period: the counts by end, the durations, the waits for an agent and the run
+  time, with buckets of hours, days or weeks in the time zone of the workspace, groups by project,
+  pipeline, agent or origin, and the previous period. New messages `JobFigures`, `JobBucket` and
+  `JobGroup`, and new enums `JobStatsBucket`, `JobStatsGroup` and `JobStatsOrder`. `JobOutcomes`
+  moves from `scylla.agents.v1` to `scylla.pipelines.v1`, with the same fields.
+- `DashboardService` keeps the saved layouts of the dashboard of a workspace: list, get, create,
+  change at the version that the client read, delete, and the team default of the workspace.
+- `AgentService.GetSlotUsage` gives the busy job slots of the agents of a workspace and the slots of
+  the connected agents. `GetAgentMetrics` gives the CPU use and the used memory of the machine of an
+  agent, in buckets. The agent sends `Metrics` at the interval of
+  `Welcome.metrics_interval_seconds`. `Host.started_at` tells the start of the agent, and
+  `App.last_sample` gives its last sample.
+- `TriggerService` has `ListWorkspaceTriggers`, `ListTriggerFires` and `GetTriggerFireStats`: the
+  triggers of a workspace with their next fires, the history of their fires and of the missed cron
+  times, and their counts. `FireStatus` has `FIRE_STATUS_MISSED`. A cron schedule uses the time zone
+  of the workspace.
+- `VcsConnectionService` has `GetDeliveryStats`: the counts of the webhook deliveries of a workspace
+  for a period, for each connection with its newest delivery, for each webhook trigger, and by hour,
+  day or week in the time zone of the workspace.
+- `DashboardService.ListAttentionItems` gives the open items of a workspace that need a person
+  ("Needs you"), newest first, with the counts of each kind and the items that are new since the
+  last visit. New messages `AttentionItem`, `AttentionJob`, `AttentionNode`, `AttentionFire`,
+  `AttentionAgent` and `AttentionCount`, and the new enum `AttentionKind`.
+- `ActivityService.ListActivity` gives the activity feed of a workspace: the end of each job and
+  each change of the triggers, the secrets, the members, the Git connections and the agents, newest
+  first, with pages and the count of the rows since a time. A row shows only to a caller that can
+  read its area.
+
+### Removed
+
+- **Breaking:** `RepositoryLink.report_mode` and `UpdateRepositoryLinkRequest.report_mode` are
+  removed. The provider sets the mode of a report: a check run on GitHub, a commit status on GitLab.
 
 ### Fixed
 
 - An invitation keeps the rule of the escalation: the text of the API now says so.
 - A role of the instance is not in the people of a workspace or of a project: `ListMembers` and
   `GetMemberAccess` now say so. The wire format did not change.
+- The comments of the Git integration RPCs and messages give the error codes, the states and the
+  reasons that the server gives, for example on RunPipeline, RerunJob, CreateTrigger and
+  RepositoryLink.state_reason.

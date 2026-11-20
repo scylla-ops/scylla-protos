@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package scylla.integrations.v1;
+
+import "scylla/common/v1/id.proto";
+import "scylla/integrations/v1/vcs.proto";
+
+// Reads the reports of the jobs to the providers, and sends a report again. Each RPC needs an
+// authenticated actor, else UNAUTHENTICATED.
+service VcsReportService {
+  // Lists the reports of 1 to 100 jobs, else INVALID_ARGUMENT. A job that is unknown, or that
+  // the caller cannot read, is not in the answer. When the caller can read no job of the list,
+  // the answer is PERMISSION_DENIED. The route permission is list_job_reports on the project of
+  // each job: its readers.
+  rpc ListJobReports(ListJobReportsRequest) returns (ListJobReportsResponse);
+  // Sends a report again now, after a failure. A report that is sent or sending does not
+  // change. An unknown job gives PERMISSION_DENIED, as a refusal does, and an unknown context
+  // gives NOT_FOUND. The route permission is retry_job_report: the editors of the project.
+  rpc RetryJobReport(RetryJobReportRequest) returns (RetryJobReportResponse);
+}
+
+// The input of ListJobReports.
+message ListJobReportsRequest {
+  // The jobs: 1 to 100.
+  repeated scylla.common.v1.Id job_ids = 1;
+}
+
+// The output of ListJobReports.
+message ListJobReportsResponse {
+  // The reports of each job, in the order of the request.
+  repeated JobReports jobs = 1;
+}
+
+// The reports of one job.
+message JobReports {
+  // The job.
+  scylla.common.v1.Id job_id = 1;
+  // The reports: one for each pipeline of the job.
+  repeated VcsReport reports = 2;
+  // Why the job has no report, as a stable code: NO_SOURCE (the job has no commit),
+  // NO_REPOSITORY_LINK, REPOSITORY_NOT_ACTIVE (the reports are on, but the link or its
+  // connection is not active) or REPORTS_OFF. Empty when the job has reports.
+  string no_report_reason = 3;
+}
+
+// The input of RetryJobReport.
+message RetryJobReportRequest {
+  // The job. Required.
+  scylla.common.v1.Id job_id = 1;
+  // The name of the report, for example scylla/build. Required.
+  string context = 2;
+}
+
+// The output of RetryJobReport.
+message RetryJobReportResponse {
+  // The report after the change.
+  VcsReport report = 1;
+}

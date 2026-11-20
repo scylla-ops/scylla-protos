@@ -151,7 +151,7 @@ message MemberRole {
 message Member {
   // The actor.
   scylla.common.v1.Id actor_id = 1;
-  // The kind of the actor, for example user or agent.
+  // The kind of the actor, for example user or app.
   string actor_kind = 2;
   // The display name of a user, or the name of an app.
   string display_name = 3;
@@ -159,6 +159,8 @@ message Member {
   string handle = 4;
   // The roles of the actor.
   repeated MemberRole roles = 5;
+  // True for an app that runs jobs: an agent. False for a user and for another app.
+  bool runner = 6;
 }
 
 // The output of ListMembers.
