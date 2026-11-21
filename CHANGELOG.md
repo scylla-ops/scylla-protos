@@ -120,6 +120,8 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   read its area.
 - `ProfileService.ExportAccountData` gives a copy of the data of the account as one JSON document,
   with no secret. A personal token with the read-only preset cannot call it.
+- `LegalService`: the legal settings of the instance (the operator, the privacy contact and the
+  legal documents). `GetLegalInfo` needs no token. `UpdateLegalSettings` is for the instance admins.
 
 ### Removed
 

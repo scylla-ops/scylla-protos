@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package scylla.platform.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// The legal documents of the instance, the identity of its operator and its privacy contact. The
+// operator of the instance writes them: Scylla gives no legal text.
+service LegalService {
+  // Returns the legal documents that are on, the operator and the privacy contact. It needs no
+  // token: the public pages of the web app and the sign-up show them before a sign-in.
+  rpc GetLegalInfo(GetLegalInfoRequest) returns (GetLegalInfoResponse);
+  // Changes the legal settings of the instance. A field that is not set does not change. The
+  // route permission is update_legal_settings on the platform: an instance admin passes, and a
+  // role of the platform level gives it, else PERMISSION_DENIED. A bad value gives
+  // INVALID_ARGUMENT with the path of its field.
+  rpc UpdateLegalSettings(UpdateLegalSettingsRequest) returns (UpdateLegalSettingsResponse);
+}
+
+// The kind of a legal document. Each kind has at most one document, and its page in the web app
+// is /legal/<kind>, for example /legal/legal-notice.
+enum LegalDocumentKind {
+  // Not used.
+  LEGAL_DOCUMENT_KIND_UNSPECIFIED = 0;
+  // The legal notice: the identity of the publisher and of the host. Path legal-notice.
+  LEGAL_DOCUMENT_KIND_LEGAL_NOTICE = 1;
+  // The privacy policy. Path privacy.
+  LEGAL_DOCUMENT_KIND_PRIVACY = 2;
+  // The cookies and the browser storage. The web app adds the table of its trackers to the
+  // text. Path cookies.
+  LEGAL_DOCUMENT_KIND_COOKIES = 3;
+  // The terms of service. Path terms.
+  LEGAL_DOCUMENT_KIND_TERMS = 4;
+  // The terms of sale. Path terms-of-sale.
+  LEGAL_DOCUMENT_KIND_TERMS_OF_SALE = 5;
+  // The data processing agreement. Path dpa.
+  LEGAL_DOCUMENT_KIND_DPA = 6;
+  // The list of the sub-processors. Path subprocessors.
+  LEGAL_DOCUMENT_KIND_SUBPROCESSORS = 7;
+}
+
+// A legal document of the instance.
+message LegalDocument {
+  // The kind. A request with LEGAL_DOCUMENT_KIND_UNSPECIFIED gives INVALID_ARGUMENT.
+  LegalDocumentKind kind = 1;
+  // The title, one line of at most 100 characters. Empty: the client shows the title of the kind.
+  string title = 2;
+  // Where the text is. Not set: the document is off, and it has no page and no link.
+  oneof content {
+    // An http or https address of at most 2048 characters: each link opens this page.
+    string url = 3;
+    // A text in Markdown of at most 262144 bytes, which the page of the kind in the web app shows.
+    string markdown = 4;
+  }
+  // The version, one line of at most 32 characters, for example 1.0.
+  string version = 5;
+  // The date of effect, YYYY-MM-DD. Empty: no date.
+  string effective_date = 6;
+  // True when each user must accept this version.
+  bool acceptance_required = 7;
+  // The time of the last change. The server sets it.
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// The organization or the person that runs the instance. Each field is optional.
+message LegalOperator {
+  // The legal name and the legal form, one line of at most 200 characters.
+  string name = 1;
+  // The registered address, at most 500 characters.
+  string address = 2;
+  // The registration number, the share capital and the VAT number, at most 500 characters.
+  string registration = 3;
+  // The director of publication, one line of at most 200 characters.
+  string publication_director = 4;
+  // An email or a phone number to contact the operator, one line of at most 200 characters.
+  string contact = 5;
+  // The name, the address and the phone number of the host of the servers, at most 500
+  // characters.
+  string host = 6;
+}
+
+// The legal settings of the instance.
+message LegalInfo {
+  // The operator.
+  LegalOperator operator = 1;
+  // The email address or the page to ask about the personal data, one line of at most 320
+  // characters. Empty: none.
+  string privacy_contact = 2;
+  // The documents that are on, in the order of the kinds.
+  repeated LegalDocument documents = 3;
+}
+
+// The input of GetLegalInfo.
+message GetLegalInfoRequest {}
+
+// The output of GetLegalInfo.
+message GetLegalInfoResponse {
+  // The legal settings.
+  LegalInfo info = 1;
+}
+
+// The input of UpdateLegalSettings.
+message UpdateLegalSettingsRequest {
+  // The new operator, which replaces each of its fields. Not set: no change.
+  LegalOperator operator = 1;
+  // The new privacy contact.
+  optional string privacy_contact = 2;
+  // The documents to change. Each one replaces the document of its kind, and a document with no
+  // content turns its kind off. The other kinds do not change. Two documents of one kind give
+  // INVALID_ARGUMENT.
+  repeated LegalDocument documents = 3;
+}
+
+// The output of UpdateLegalSettings.
+message UpdateLegalSettingsResponse {
+  // The legal settings after the change.
+  LegalInfo info = 1;
+}
