@@ -127,6 +127,9 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   last version that the user accepted. `SignUp` takes `accepted_terms_version`, and gives
   `TERMS_NOT_ACCEPTED` when the terms need an acceptance and the request does not accept their
   current version.
+- `ConsentService.RecordConsent` keeps a record of a choice about cookies: the version and the
+  SHA-256 of the text that the person saw, the choice for each purpose, the action and the source. A
+  withdrawal is a new record.
 
 ### Removed
 
