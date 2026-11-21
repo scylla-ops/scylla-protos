@@ -9,7 +9,8 @@ import "scylla/common/v1/id.proto";
 // The account of the caller: its profile, its email, its password, its identities and its
 // sessions. Each RPC needs the token of a user, else UNAUTHENTICATED or PERMISSION_DENIED.
 service ProfileService {
-  // Returns the user of the caller, with its handle and its instance admin flag.
+  // Returns the user of the caller, with its handle and its instance admin flag, and its
+  // acceptance of the terms of service.
   rpc GetMe(GetMeRequest) returns (GetMeResponse);
   // Changes the display name or the handle. A handle of another user gives
   // FAILED_PRECONDITION with the reason HANDLE_IN_USE.
@@ -42,9 +43,16 @@ service ProfileService {
   rpc RevokeOtherSessions(RevokeOtherSessionsRequest) returns (RevokeOtherSessionsResponse);
   // Returns a copy of the data of the account, as one JSON document: the profile, the emails,
   // the identities, the sessions, the metadata of the personal tokens (never a secret), the
-  // state of the web app, the workspaces and the roles, and the data that the edition adds. A
-  // personal token with the read-only preset gets PERMISSION_DENIED.
+  // state of the web app, the acceptances of the terms of service, the workspaces and the roles,
+  // and the data that the edition adds. A personal token with the read-only preset gets
+  // PERMISSION_DENIED.
   rpc ExportAccountData(ExportAccountDataRequest) returns (ExportAccountDataResponse);
+  // Records that the user accepts the current version of the terms of service. A version that
+  // is not the version of the terms of the instance (LegalService.GetLegalInfo) gives
+  // FAILED_PRECONDITION with the reason TERMS_NOT_ACCEPTED, and the ErrorInfo metadata "version"
+  // names the current version, empty when the terms are off. A second acceptance of one version
+  // keeps the first one.
+  rpc AcceptTerms(AcceptTermsRequest) returns (AcceptTermsResponse);
 }
 
 // The input of GetMe.
@@ -54,6 +62,19 @@ message GetMeRequest {}
 message GetMeResponse {
   // The user of the caller.
   User user = 1;
+  // True while the terms of service of the instance need an acceptance and the user did not
+  // accept their current version. The web app then shows the terms before the app.
+  bool terms_acceptance_required = 2;
+  // The last version of the terms of service that the user accepted. Not set: none.
+  TermsAcceptance accepted_terms = 3;
+}
+
+// An acceptance of a version of the terms of service by a user.
+message TermsAcceptance {
+  // The version that the user accepted.
+  string version = 1;
+  // The time of the acceptance.
+  google.protobuf.Timestamp accepted_at = 2;
 }
 
 // The input of UpdateProfile. A field that is not set does not change.
@@ -182,4 +203,16 @@ message ExportAccountDataResponse {
   string json = 1;
   // The time of the export.
   google.protobuf.Timestamp exported_at = 2;
+}
+
+// The input of AcceptTerms.
+message AcceptTermsRequest {
+  // The version of the terms of service that the user accepts.
+  string version = 1;
+}
+
+// The output of AcceptTerms.
+message AcceptTermsResponse {
+  // The acceptance of the version, or the first acceptance of the same version.
+  TermsAcceptance acceptance = 1;
 }

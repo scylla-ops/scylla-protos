@@ -122,6 +122,11 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   with no secret. A personal token with the read-only preset cannot call it.
 - `LegalService`: the legal settings of the instance (the operator, the privacy contact and the
   legal documents). `GetLegalInfo` needs no token. `UpdateLegalSettings` is for the instance admins.
+- `ProfileService.AcceptTerms` keeps the acceptance of the current version of the terms of service.
+  `GetMe` tells if the user must accept a new version (`terms_acceptance_required`) and gives the
+  last version that the user accepted. `SignUp` takes `accepted_terms_version`, and gives
+  `TERMS_NOT_ACCEPTED` when the terms need an acceptance and the request does not accept their
+  current version.
 
 ### Removed
 
