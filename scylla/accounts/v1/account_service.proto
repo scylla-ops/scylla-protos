@@ -10,7 +10,10 @@ import "scylla/auth/v1/token_service.proto";
 service AccountService {
   // Creates a user that signs in with a password. With an invitation, the email is verified
   // and the invitation is accepted. Else the server sends a link to verify the email. The
-  // sign-up mode of the server can refuse it with FAILED_PRECONDITION.
+  // sign-up mode of the server can refuse it with FAILED_PRECONDITION. When the terms of service
+  // of the instance need an acceptance, a request that does not accept their current version
+  // gives FAILED_PRECONDITION with the reason TERMS_NOT_ACCEPTED, and the ErrorInfo metadata
+  // "version" names the current version. The new user keeps the acceptance.
   rpc SignUp(SignUpRequest) returns (SignUpResponse);
   // Verifies the email of a new user with the token of the link, and activates the user.
   rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
@@ -45,6 +48,9 @@ message SignUpRequest {
   string display_name = 3;
   // The token of an invitation link, if the user has one.
   string invitation_token = 4;
+  // The version of the terms of service that the person accepted on the form
+  // (LegalService.GetLegalInfo gives it). Not set: the person accepted no terms.
+  optional string accepted_terms_version = 5;
 }
 
 // The output of SignUp. It is the same for a new email and for a known email.

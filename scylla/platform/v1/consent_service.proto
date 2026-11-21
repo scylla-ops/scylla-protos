@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package scylla.platform.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// The proof of the choices of the consent banner. The web app keeps the choice of a browser in
+// its cookie scylla_consent, and the server keeps a record of each choice, so that the operator
+// can prove a consent. A withdrawal is a new record.
+service ConsentService {
+  // Records a choice of a browser on the trackers that need consent. It needs no token: the
+  // banner shows before a sign-in. With the token of a user, the record names the user, the
+  // export of the data of the account holds it, and the deletion of the account deletes it. The
+  // route permission is record_consent on the caller, and a token of an actor that is not a user
+  // gets PERMISSION_DENIED. A bad value gives INVALID_ARGUMENT with the path of its field. More
+  // than 30 records from one IP address in one minute give RESOURCE_EXHAUSTED.
+  rpc RecordConsent(RecordConsentRequest) returns (RecordConsentResponse);
+}
+
+// What the person did.
+enum ConsentAction {
+  // Not used.
+  CONSENT_ACTION_UNSPECIFIED = 0;
+  // The person accepted each purpose.
+  CONSENT_ACTION_ACCEPT_ALL = 1;
+  // The person refused each purpose.
+  CONSENT_ACTION_REJECT_ALL = 2;
+  // The person accepted some purposes and refused the others.
+  CONSENT_ACTION_CUSTOM = 3;
+  // The person refused a purpose that the browser had accepted before.
+  CONSENT_ACTION_WITHDRAW = 4;
+}
+
+// Where the person made the choice.
+enum ConsentSource {
+  // Not used.
+  CONSENT_SOURCE_UNSPECIFIED = 0;
+  // The banner at the bottom of the page.
+  CONSENT_SOURCE_BANNER = 1;
+  // The cookie settings, from the banner, the footer, the user menu or the cookie page.
+  CONSENT_SOURCE_PREFERENCES = 2;
+  // The cookie settings, from the privacy section of the account.
+  CONSENT_SOURCE_ACCOUNT = 3;
+}
+
+// The choice of one purpose.
+message ConsentChoice {
+  // The purpose, 1 to 32 lowercase letters, digits and dashes, for example analytics.
+  string purpose = 1;
+  // True when the person accepted the purpose.
+  bool granted = 2;
+}
+
+// The input of RecordConsent.
+message RecordConsentRequest {
+  // The consent of the browser, from an earlier answer. Not set: the first choice of the
+  // browser, and the server makes a new id.
+  scylla.common.v1.Id consent_id = 1;
+  // The version of the banner: it changes when a purpose or a partner changes. One line of 1 to
+  // 64 characters.
+  string banner_version = 2;
+  // The SHA-256 of the text that the person saw, as 64 lowercase hexadecimal characters.
+  string banner_hash = 3;
+  // One choice for each purpose of the banner: 1 to 16 choices, each purpose once.
+  repeated ConsentChoice choices = 4;
+  // What the person did.
+  ConsentAction action = 5;
+  // Where the person made the choice.
+  ConsentSource source = 6;
+}
+
+// The output of RecordConsent.
+message RecordConsentResponse {
+  // The consent of the browser: the web app keeps it in the cookie and sends it with each later
+  // choice.
+  scylla.common.v1.Id consent_id = 1;
+  // The time of the record.
+  google.protobuf.Timestamp recorded_at = 2;
+}
