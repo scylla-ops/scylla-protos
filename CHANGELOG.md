@@ -118,6 +118,8 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   each change of the triggers, the secrets, the members, the Git connections and the agents, newest
   first, with pages and the count of the rows since a time. A row shows only to a caller that can
   read its area.
+- `ProfileService.ExportAccountData` gives a copy of the data of the account as one JSON document,
+  with no secret. A personal token with the read-only preset cannot call it.
 
 ### Removed
 

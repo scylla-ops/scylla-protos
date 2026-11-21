@@ -40,6 +40,11 @@ service ProfileService {
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
   // Closes each session of the user, except the session of the request.
   rpc RevokeOtherSessions(RevokeOtherSessionsRequest) returns (RevokeOtherSessionsResponse);
+  // Returns a copy of the data of the account, as one JSON document: the profile, the emails,
+  // the identities, the sessions, the metadata of the personal tokens (never a secret), the
+  // state of the web app, the workspaces and the roles, and the data that the edition adds. A
+  // personal token with the read-only preset gets PERMISSION_DENIED.
+  rpc ExportAccountData(ExportAccountDataRequest) returns (ExportAccountDataResponse);
 }
 
 // The input of GetMe.
@@ -166,3 +171,15 @@ message RevokeOtherSessionsRequest {}
 
 // The output of RevokeOtherSessions.
 message RevokeOtherSessionsResponse {}
+
+// The input of ExportAccountData.
+message ExportAccountDataRequest {}
+
+// The output of ExportAccountData.
+message ExportAccountDataResponse {
+  // The data of the account, as one JSON document in UTF-8. Its key "format" names the version
+  // of its structure.
+  string json = 1;
+  // The time of the export.
+  google.protobuf.Timestamp exported_at = 2;
+}
