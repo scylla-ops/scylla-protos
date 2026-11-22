@@ -27,9 +27,10 @@ message TriggerFire {
   google.protobuf.Timestamp due_at = 7;
   // The start of the fire. Not set for a missed time.
   google.protobuf.Timestamp fired_at = 8;
-  // The result: FIRE_STATUS_OK, FIRE_STATUS_ERROR or FIRE_STATUS_MISSED.
+  // The result: FIRE_STATUS_OK, FIRE_STATUS_ERROR, FIRE_STATUS_MISSED or FIRE_STATUS_SKIPPED.
   FireStatus status = 9;
-  // The reason of a fire that failed. Empty for another status.
+  // The reason of a fire that failed, or of a delivery that the conditions skipped, for example
+  // "No match: /ref is refs/heads/dev". Empty for another status.
   string error = 10;
   // The job of the fire. Not set when the fire made no job, or when the job was deleted.
   scylla.common.v1.Id job_id = 11;
@@ -64,6 +65,9 @@ message TriggerFireFigures {
   google.protobuf.Duration p50_delay = 5;
   // The 95th percentile of the same delays. Not set when no fire of a schedule ran.
   google.protobuf.Duration p95_delay = 6;
+  // The deliveries of a webhook that did not match its conditions ("skipped"). They are not
+  // failed fires.
+  uint32 skipped = 7;
 }
 
 // The fires of one hour, day or week of the period.

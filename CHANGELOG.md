@@ -12,6 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 - **Breaking:** the API of the new backend replaces the API of the old server. It keeps no
   compatibility, so the check of breaking changes is removed from the repository.
 - Ids are opaque, in one message (`scylla.common.v1.Id`), and lists use keyset pages.
+- `StartGitHubInstall` gives the authorize page of the GitHub App. After this page,
+  `CompleteGitHubInstall` gives the installations that the user can connect (`choice`), or the
+  connection.
 
 ### Added
 
@@ -121,6 +124,25 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
   each change of the triggers, the secrets, the members, the Git connections and the agents, newest
   first, with pages and the count of the rows since a time. A row shows only to a caller that can
   read its area.
+- `ProfileService.ExportAccountData` gives a copy of the data of the account as one JSON document,
+  with no secret. A personal token with the read-only preset cannot call it.
+- `LegalService`: the legal settings of the instance (the operator, the privacy contact and the
+  legal documents). `GetLegalInfo` needs no token. `UpdateLegalSettings` is for the instance admins.
+- `ProfileService.AcceptTerms` keeps the acceptance of the current version of the terms of service.
+  `GetMe` tells if the user must accept a new version (`terms_acceptance_required`) and gives the
+  last version that the user accepted. `SignUp` takes `accepted_terms_version`, and gives
+  `TERMS_NOT_ACCEPTED` when the terms need an acceptance and the request does not accept their
+  current version.
+- `ConsentService.RecordConsent` keeps a record of a choice about cookies: the version and the
+  SHA-256 of the text that the person saw, the choice for each purpose, the action and the source. A
+  withdrawal is a new record.
+- `LegalDocument.changes`: what changes in a version of a legal document, a plain text of at most
+  2000 characters with one change on each line. `UpdateLegalSettings` sets it and `GetLegalInfo`
+  gives it.
+- `Webhook` has `conditions`: each condition reads a header or a JSON pointer into the body, and
+  compares it with `CONDITION_OPERATOR_IS`, `CONDITION_OPERATOR_MATCHES` or
+  `CONDITION_OPERATOR_ONE_OF`. `FireStatus` has `FIRE_STATUS_SKIPPED`, `TriggerFireFigures` has
+  `skipped`, and `UpdateTriggerRequest.rules` has `webhook`.
 
 ### Removed
 
