@@ -22,12 +22,16 @@ service TriggerService {
   // FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. On a file pipeline, it gives
   // FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY: the on section of the file gives its
   // Git triggers. A bad glob, more than 32 globs in a list, or an unknown event of a pull request
-  // gives INVALID_ARGUMENT on its field, for example push.exclude_branches[1].
+  // gives INVALID_ARGUMENT on its field, for example push.exclude_branches[1]. A bad condition of a
+  // webhook gives INVALID_ARGUMENT on its field, for example webhook.conditions[0].json_pointer:
+  // more than 32 conditions, no source or operator, an empty header name, a JSON pointer that does
+  // not start with /, an empty value, a bad glob, or a wrong count of values.
   rpc CreateTrigger(CreateTriggerRequest) returns (CreateTriggerResponse);
   // Reads one trigger. The secret of a webhook is never in it.
   rpc GetTrigger(GetTriggerRequest) returns (GetTriggerResponse);
   // Changes the name, the schedule of a cron trigger, the rules of a push, pull request or tag
-  // trigger, or the inputs. The kind does not change.
+  // trigger, the conditions of a webhook trigger, or the inputs. The kind does not change. Bad
+  // rules or conditions give INVALID_ARGUMENT, as in CreateTrigger.
   rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse);
   // Deletes a trigger. Its jobs stay.
   rpc DeleteTrigger(DeleteTriggerRequest) returns (DeleteTriggerResponse);
@@ -36,10 +40,11 @@ service TriggerService {
   rpc ListPipelineTriggers(ListPipelineTriggersRequest) returns (ListPipelineTriggersResponse);
   // Starts or stops a trigger. A schedule that starts again fires at its next time after now.
   rpc SetTriggerEnabled(SetTriggerEnabledRequest) returns (SetTriggerEnabledResponse);
-  // Fires a trigger now, with no body: a JSON pointer gives an empty text. A push, pull request
-  // or tag trigger runs its pipeline at the head of the default branch, and a file pipeline runs
-  // its file there, with the event TRIGGER. The read of that commit gives the codes of
-  // RunPipeline on a ref. The history of the fires keeps the fire with FIRE_SOURCE_MANUAL.
+  // Fires a trigger now, with no body: a JSON pointer gives an empty text, and the conditions of a
+  // webhook are not read. A push, pull request or tag trigger runs its pipeline at the head of the
+  // default branch, and a file pipeline runs its file there, with the event TRIGGER. The read of
+  // that commit gives the codes of RunPipeline on a ref. The history of the fires keeps the fire
+  // with FIRE_SOURCE_MANUAL.
   rpc FireTriggerNow(FireTriggerNowRequest) returns (FireTriggerNowResponse);
   // Lists the triggers of a workspace, in the projects that the caller can see, with their next
   // fires and their recent results, for the dashboard. The readers of the workspace see each
@@ -123,8 +128,9 @@ message UpdateTriggerRequest {
   optional string schedule = 3;
   // The new inputs. They replace all the inputs.
   TriggerInputList inputs = 4;
-  // The new rules of a push, pull request or tag trigger. They replace all the rules. Rules of
-  // another kind than the kind of the trigger give INVALID_ARGUMENT.
+  // The new rules of a push, pull request or tag trigger, or the new conditions of a webhook
+  // trigger. They replace all the rules or conditions. Rules of another kind than the kind of the
+  // trigger give INVALID_ARGUMENT.
   oneof rules {
     // The rules of a push trigger.
     Push push = 5;
@@ -132,6 +138,8 @@ message UpdateTriggerRequest {
     PullRequest pull_request = 6;
     // The rules of a tag trigger.
     Tag tag = 7;
+    // The conditions of a webhook trigger. The path is not read.
+    Webhook webhook = 8;
   }
 }
 

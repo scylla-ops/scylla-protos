@@ -11,7 +11,8 @@ message DeliveryFigures {
   // Each delivery that the server kept, also the failed ones.
   uint32 delivered = 1;
   // The deliveries that arrived but whose work failed: a Git event that did not run, or a fire of
-  // a webhook trigger that made no job.
+  // a webhook trigger that failed. A delivery that the conditions of a webhook trigger skipped is
+  // not a failure.
   uint32 failed = 2;
 }
 
