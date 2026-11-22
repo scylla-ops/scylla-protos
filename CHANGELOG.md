@@ -133,6 +133,10 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - `LegalDocument.changes`: what changes in a version of a legal document, a plain text of at most
   2000 characters with one change on each line. `UpdateLegalSettings` sets it and `GetLegalInfo`
   gives it.
+- `Webhook` has `conditions`: each condition reads a header or a JSON pointer into the body, and
+  compares it with `CONDITION_OPERATOR_IS`, `CONDITION_OPERATOR_MATCHES` or
+  `CONDITION_OPERATOR_ONE_OF`. `FireStatus` has `FIRE_STATUS_SKIPPED`, `TriggerFireFigures` has
+  `skipped`, and `UpdateTriggerRequest.rules` has `webhook`.
 
 ### Removed
 

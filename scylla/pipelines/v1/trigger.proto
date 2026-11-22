@@ -43,10 +43,10 @@ message Trigger {
   google.protobuf.Timestamp next_fire_at = 11;
   // The last fire.
   google.protobuf.Timestamp last_fired_at = 12;
-  // The result of the last fire: FIRE_STATUS_OK or FIRE_STATUS_ERROR. A missed time does not
-  // change it.
+  // The result of the last fire: FIRE_STATUS_OK, FIRE_STATUS_ERROR or FIRE_STATUS_SKIPPED. A
+  // missed time does not change it.
   FireStatus last_status = 13;
-  // The reason of a last fire that failed.
+  // The reason of a last fire that failed or that the conditions of a webhook skipped.
   string last_error = 14;
   // The creation time.
   google.protobuf.Timestamp created_at = 15;
@@ -69,9 +69,47 @@ message Cron {
 // A webhook. A request goes to POST /webhooks/{id} on the API URL, with the HMAC-SHA256 of the
 // body in the header X-Scylla-Signature-256 or X-Hub-Signature-256, with or without the prefix
 // sha256=. A key in X-Scylla-Delivery or X-GitHub-Delivery stops a second fire of one delivery.
+// After these checks, a delivery that does not match all the conditions gets 200 and no job: the
+// history keeps it with FIRE_STATUS_SKIPPED and the reason.
 message Webhook {
   // The path of the route of the trigger.
   string path = 1;
+  // The conditions on each delivery, at most 32. A delivery starts a job only when all of them
+  // match. No condition: each delivery starts a job. FireTriggerNow does not read them.
+  repeated WebhookCondition conditions = 2;
+}
+
+// A condition on a delivery of a webhook.
+message WebhookCondition {
+  // The value of the delivery that the condition reads. Required.
+  oneof source {
+    // The name of a header, for example X-GitHub-Event. Upper and lower case are the same. A
+    // delivery with no such header does not match.
+    string header = 1;
+    // A JSON pointer into the body, for example /ref. It starts with /. A text gives the text, null
+    // an empty text, and another value its JSON. A body that is not JSON, or no value at the
+    // pointer, does not match.
+    string json_pointer = 2;
+  }
+  // How the value compares with the values of the condition. Required.
+  ConditionOperator operator = 3;
+  // The values, each one not empty and at most 1024 characters: one value for
+  // CONDITION_OPERATOR_IS and CONDITION_OPERATOR_MATCHES, 1 to 32 unique values for
+  // CONDITION_OPERATOR_ONE_OF.
+  repeated string values = 4;
+}
+
+// How a condition of a webhook compares the value of a delivery.
+enum ConditionOperator {
+  // Not used.
+  CONDITION_OPERATOR_UNSPECIFIED = 0;
+  // The value is equal to the value of the condition. Upper and lower case are different.
+  CONDITION_OPERATOR_IS = 1;
+  // The value matches the glob of the condition, as the globs of the branches: * stops at a /, **
+  // does not, and \ escapes the next character.
+  CONDITION_OPERATOR_MATCHES = 2;
+  // The value is equal to one of the values of the condition.
+  CONDITION_OPERATOR_ONE_OF = 3;
 }
 
 // The rules of a push trigger. A push to a matching branch starts one job for each pipeline and
@@ -143,6 +181,9 @@ enum FireStatus {
   // The server was down at the cron time, so the time did not fire ("time missed"). Only a
   // TriggerFire has this status.
   FIRE_STATUS_MISSED = 3;
+  // A delivery of a webhook did not match its conditions, so the fire made no job ("skipped").
+  // The error tells which condition did not match. It is not a failure.
+  FIRE_STATUS_SKIPPED = 4;
 }
 
 // The kind of a trigger: what starts its jobs.
