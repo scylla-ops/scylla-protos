@@ -130,6 +130,9 @@ The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `
 - `ConsentService.RecordConsent` keeps a record of a choice about cookies: the version and the
   SHA-256 of the text that the person saw, the choice for each purpose, the action and the source. A
   withdrawal is a new record.
+- `LegalDocument.changes`: what changes in a version of a legal document, a plain text of at most
+  2000 characters with one change on each line. `UpdateLegalSettings` sets it and `GetLegalInfo`
+  gives it.
 
 ### Removed
 

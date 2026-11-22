@@ -60,6 +60,10 @@ message LegalDocument {
   bool acceptance_required = 7;
   // The time of the last change. The server sets it.
   google.protobuf.Timestamp updated_at = 8;
+  // What changes in this version, for the users who accepted an earlier version: a plain text of
+  // at most 2000 characters, with one change on each line. The web app shows each line as an
+  // item of a list on the terms step. Empty: no list.
+  string changes = 9;
 }
 
 // The organization or the person that runs the instance. Each field is optional.
