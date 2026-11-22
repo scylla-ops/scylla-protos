@@ -68,8 +68,10 @@ service PipelineService {
   // .scylla/pipelines/<key>.<ext>, gives INVALID_ARGUMENT. The route permission is
   // validate_pipeline_file: the readers of the project.
   rpc ValidatePipelineFile(ValidatePipelineFileRequest) returns (ValidatePipelineFileResponse);
-  // Writes a pipeline as a file in TOML, YAML or JSON, for a move to the repository files. The
-  // route permission is export_pipeline: the readers of the project.
+  // Writes a pipeline as a file in TOML, YAML or JSON, for a move to the repository files. A
+  // pipeline with a switch, a merge or a need with a port gives FAILED_PRECONDITION with the
+  // reason CONDITIONAL_NODES: a file has no form for them. The route permission is
+  // export_pipeline: the readers of the project.
   rpc ExportPipeline(ExportPipelineRequest) returns (ExportPipelineResponse);
   // Reads a file pipeline at a commit of the linked repository: its file, its nodes and its
   // errors. An editor pipeline gives FAILED_PRECONDITION with the reason NOT_A_FILE_PIPELINE. A

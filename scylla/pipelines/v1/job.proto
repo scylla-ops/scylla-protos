@@ -153,6 +153,8 @@ message NodeRun {
   string error = 7;
   // The most attempts of the node: 1 and its retries.
   uint32 max_attempts = 8;
+  // The ports that a completed switch opened. Empty for another node.
+  repeated string ports = 9;
 }
 
 // The checkout of the code of a job, before its first node. Its log lines have the node id
@@ -180,7 +182,7 @@ enum NodeStatus {
   NODE_STATUS_COMPLETED = 3;
   // The node failed after its last attempt.
   NODE_STATUS_FAILED = 4;
-  // The node did not run, because a node failed.
+  // The node did not run: a node failed, or a need of the node did not open.
   NODE_STATUS_SKIPPED = 5;
   // The job ended before the node ended.
   NODE_STATUS_CANCELLED = 6;
