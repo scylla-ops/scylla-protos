@@ -50,6 +50,33 @@ message Pipeline {
   google.protobuf.Timestamp removed_at = 15;
   // The number of errors of the file of a file pipeline on the default branch.
   uint32 file_error_count = 16;
+  // The blocks of the pipeline that link a version of a fragment of the library.
+  repeated FragmentLink fragment_links = 17;
+}
+
+// A block of a pipeline that links a version of a fragment of the library of its workspace. The
+// pipeline keeps the nodes of the block, so a job runs them as the other nodes. The server does
+// not check that the fragment exists: a deleted fragment leaves its links.
+message FragmentLink {
+  // The id of the block in the graph: the rule of a node id, and no node of the pipeline has it.
+  string block_id = 1;
+  // The fragment. Required.
+  scylla.common.v1.Id fragment_id = 2;
+  // The version of the fragment that the block holds, 1 or more.
+  uint32 version = 3;
+  // The values that the pipeline gives to the parameters, by key: at most 128, each key the name
+  // of an environment variable and each value at most 65536 bytes.
+  map<string, string> values = 4;
+  // The nodes of the pipeline that the block holds: 1 to 256, each in one block only.
+  repeated string node_ids = 5;
+  // The newest version that the pipeline chose not to take.
+  optional uint32 skipped_version = 6;
+}
+
+// A list of fragment links, so a request can tell "no change" from "no link".
+message FragmentLinkList {
+  // The links, at most 256, with no two the same block id.
+  repeated FragmentLink links = 1;
 }
 
 // The places of the nodes on the canvas of a pipeline.

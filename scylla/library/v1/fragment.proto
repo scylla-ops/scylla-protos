@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package scylla.library.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/pipelines/v1/pipeline.proto";
+
+// A fragment of the library of a workspace: nodes of a pipeline that other pipelines of the
+// workspace use. A pipeline keeps a copy of the nodes and links a version of the fragment
+// (scylla.pipelines.v1.FragmentLink), so a new version never changes a pipeline.
+message Fragment {
+  // The id of the fragment.
+  scylla.common.v1.Id id = 1;
+  // The workspace of the fragment.
+  scylla.common.v1.Id workspace_id = 2;
+  // The name: the rule of a node id, unique in the workspace. It is the id of the block in a
+  // pipeline. It does not change.
+  string name = 3;
+  // The description, at most 2000 characters.
+  string description = 4;
+  // The tags, at most 16, each 1 to 32 characters.
+  repeated string tags = 5;
+  // The actor that created the fragment.
+  FragmentAuthor author = 6;
+  // The versions, the oldest first. Each number is larger than the number before it, and a
+  // number can be missing. ListFragments sets the nodes of the latest version only.
+  repeated FragmentVersion versions = 7;
+  // True if the caller marked the fragment as a favorite.
+  bool favorite = 8;
+  // The active pipelines of the workspace that link the fragment.
+  repeated FragmentUsage usages = 9;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 10;
+  // The package of an outside registry that the fragment comes from. Not set for a fragment
+  // that the workspace made.
+  FragmentOrigin origin = 11;
+}
+
+// Where a fragment comes from: a package of an outside registry. The server does not call the
+// registry: the client reads it and sends the versions that the workspace takes.
+message FragmentOrigin {
+  // The URL of the registry.
+  string registry = 1;
+  // The id of the package in the registry.
+  string package_id = 2;
+  // The name of the package to show, for example @acme/build.
+  string package_name = 3;
+  // True: the workspace does not change the fragment, and takes the versions of the package
+  // with AcceptOriginVersion. False: a fork that the workspace changes.
+  bool linked = 4;
+  // The version of the package that the fragment started from, or that a fork copies.
+  uint32 base_version = 5;
+  // The versions of the package that a linked fragment chose not to take.
+  repeated uint32 skipped = 6;
+  // The version of the package that a fork chose not to see.
+  optional uint32 dismissed = 7;
+  // The time when the workspace added the fragment.
+  google.protobuf.Timestamp added_at = 8;
+}
+
+// The origin of a new fragment.
+message NewFragmentOrigin {
+  // The URL of the registry: http or https, at most 512 characters.
+  string registry = 1;
+  // The id of the package in the registry: 1 to 128 characters on one line.
+  string package_id = 2;
+  // The name of the package to show: 1 to 200 characters on one line.
+  string package_name = 3;
+  // The version of the package that the new fragment holds: its version 1 keeps this number.
+  uint32 version = 4;
+  // True for a linked fragment, false for a fork.
+  bool linked = 5;
+}
+
+// The actor that made a fragment or a version.
+message FragmentAuthor {
+  // The id of the actor.
+  scylla.common.v1.Id id = 1;
+  // The display name of the user, or empty for an actor that is not a user.
+  string name = 2;
+}
+
+// A version of a fragment. A version does not change after its creation.
+message FragmentVersion {
+  // The number of the version, 1 or more.
+  uint32 number = 1;
+  // The nodes. Their needs name other nodes of the version only.
+  repeated scylla.pipelines.v1.Node nodes = 2;
+  // The values that each pipeline gives to the fragment.
+  repeated FragmentParameter parameters = 3;
+  // What changed since the version before, one line each.
+  repeated string changes = 4;
+  // The actor that made the version.
+  FragmentAuthor author = 5;
+  // The time of the version.
+  google.protobuf.Timestamp published_at = 6;
+}
+
+// The kind of a parameter of a fragment.
+enum ParameterKind {
+  // Not set. A request with it gives INVALID_ARGUMENT.
+  PARAMETER_KIND_UNSPECIFIED = 0;
+  // A text in clear, with a default value.
+  PARAMETER_KIND_LITERAL = 1;
+  // The name of a secret of the project of the pipeline. It has no default value.
+  PARAMETER_KIND_SECRET = 2;
+}
+
+// A value that each pipeline gives to a fragment: an environment variable of its nodes.
+message FragmentParameter {
+  // The name of the environment variable. Each node of the version that has it gets the value.
+  string key = 1;
+  // The kind.
+  ParameterKind kind = 2;
+  // The default value of a literal, at most 65536 bytes. Empty for a secret.
+  string default_value = 3;
+  // What the parameter is for, at most 500 characters.
+  string description = 4;
+}
+
+// An active pipeline that links a fragment.
+message FragmentUsage {
+  // The pipeline.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The display name of the pipeline.
+  string pipeline_name = 2;
+  // The project of the pipeline.
+  scylla.common.v1.Id project_id = 3;
+  // The display name of the project.
+  string project_name = 4;
+  // The version that the pipeline links.
+  uint32 version = 5;
+  // The values that the pipeline gives to the parameters, by key.
+  map<string, string> values = 6;
+}

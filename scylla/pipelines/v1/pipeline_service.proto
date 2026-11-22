@@ -105,6 +105,8 @@ message CreatePipelineRequest {
   PipelineLayout layout = 4;
   // How the agent gets the code before the first node. Not set gives the default.
   CheckoutSettings checkout = 5;
+  // The blocks that link a version of a fragment, at most 256: the rules of FragmentLink.
+  repeated FragmentLink fragment_links = 6;
 }
 
 // The output of CreatePipeline.
@@ -141,6 +143,9 @@ message UpdatePipelineRequest {
   PipelineLayout layout = 5;
   // The new checkout settings.
   CheckoutSettings checkout = 6;
+  // The new fragment links: they replace all the links. The links after the change, new or kept,
+  // must match the nodes after the change, else INVALID_ARGUMENT.
+  FragmentLinkList fragment_links = 7;
 }
 
 // A list of nodes, so a request can tell "no change" from "these nodes".
