@@ -1,0 +1,211 @@
+syntax = "proto3";
+
+package scylla.library.v1;
+
+import "scylla/common/v1/id.proto";
+import "scylla/common/v1/page.proto";
+import "scylla/library/v1/fragment.proto";
+import "scylla/pipelines/v1/pipeline.proto";
+
+// Creates, reads, lists, versions and deletes the fragments of the library of a workspace. Each
+// RPC needs an authenticated actor, else UNAUTHENTICATED. An unknown fragment gives
+// PERMISSION_DENIED, as a refusal does.
+service FragmentService {
+  // Lists the fragments of a workspace, in id order. Each fragment has all its versions, and only
+  // its latest version has its nodes. The route permission is list_fragments: for example the
+  // roles owner, admin, member and viewer of the workspace.
+  rpc ListFragments(ListFragmentsRequest) returns (ListFragmentsResponse);
+  // Reads one fragment with the nodes of each version. The route permission is get_fragment on
+  // the workspace of the fragment: for example the roles owner, admin, member and viewer.
+  rpc GetFragment(GetFragmentRequest) returns (GetFragmentResponse);
+  // Creates a fragment with its version 1, with the caller as its author. The route permission
+  // is create_fragment: for example the roles owner, admin and member. A bad name, node or
+  // parameter gives INVALID_ARGUMENT with the path of the value. A name that the workspace has
+  // gives FAILED_PRECONDITION with the reason FRAGMENT_NAME_IN_USE.
+  rpc CreateFragment(CreateFragmentRequest) returns (CreateFragmentResponse);
+  // Adds a version to a fragment, with the next number. The author of the fragment always adds
+  // one. Another caller needs the route permission publish_fragment_version on the workspace of
+  // the fragment: for example the roles owner and admin. The pipelines that link the fragment do
+  // not change. A linked fragment gives FAILED_PRECONDITION with the reason FRAGMENT_LINKED: it
+  // takes its versions from its package. An edition can refuse the version with
+  // FAILED_PRECONDITION.
+  rpc PublishFragmentVersion(PublishFragmentVersionRequest) returns (PublishFragmentVersionResponse);
+  // Marks a fragment as a favorite of the caller, or removes the mark. The route permission is
+  // set_fragment_favorite: for example the roles owner, admin, member and viewer.
+  rpc SetFragmentFavorite(SetFragmentFavoriteRequest) returns (SetFragmentFavoriteResponse);
+  // Deletes a fragment and its versions. The pipelines that link it keep their nodes and still
+  // run: their links name a fragment that is not in the library. The author of the fragment
+  // always deletes it. Another caller needs the route permission delete_fragment on the
+  // workspace of the fragment: for example the roles owner and admin. An edition can refuse the
+  // delete with FAILED_PRECONDITION.
+  rpc DeleteFragment(DeleteFragmentRequest) returns (DeleteFragmentResponse);
+  // Adds a version of its package to a linked fragment, with the number of the package. The
+  // client reads the content from the registry. The route permission is accept_origin_version on
+  // the workspace of the fragment: for example the roles owner and admin. A fragment that is not
+  // linked gives FAILED_PRECONDITION with the reason FRAGMENT_NOT_LINKED, and a number that is
+  // not larger than each number of the fragment FRAGMENT_VERSION_NOT_NEWER.
+  rpc AcceptOriginVersion(AcceptOriginVersionRequest) returns (AcceptOriginVersionResponse);
+  // Stops the proposal of a version of its package to a linked fragment. The route permission is
+  // skip_origin_version: for example the roles owner and admin. A fragment that is not linked
+  // gives FAILED_PRECONDITION with the reason FRAGMENT_NOT_LINKED.
+  rpc SkipOriginVersion(SkipOriginVersionRequest) returns (SkipOriginVersionResponse);
+  // Hides a version of its package from a fork. The route permission is dismiss_origin_version:
+  // for example the roles owner and admin. A fragment that is not a fork of a package gives
+  // FAILED_PRECONDITION with the reason FRAGMENT_NOT_FORKED.
+  rpc DismissOriginVersion(DismissOriginVersionRequest) returns (DismissOriginVersionResponse);
+  // Makes a linked fragment a fork that the workspace changes, from its latest version. The
+  // route permission is detach_origin: for example the roles owner and admin. A fragment that is
+  // not linked gives FAILED_PRECONDITION with the reason FRAGMENT_NOT_LINKED.
+  rpc DetachOrigin(DetachOriginRequest) returns (DetachOriginResponse);
+}
+
+// The input of ListFragments.
+message ListFragmentsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The page.
+  scylla.common.v1.PageRequest page = 2;
+}
+
+// The output of ListFragments.
+message ListFragmentsResponse {
+  // The fragments of the page, in id order.
+  repeated Fragment fragments = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of GetFragment.
+message GetFragmentRequest {
+  // The fragment. Required.
+  scylla.common.v1.Id fragment_id = 1;
+}
+
+// The output of GetFragment.
+message GetFragmentResponse {
+  // The fragment.
+  Fragment fragment = 1;
+}
+
+// The input of CreateFragment.
+message CreateFragmentRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The name: 1 to 128 lower case letters, digits, dashes or underscores.
+  string name = 2;
+  // The description, at most 2000 characters.
+  string description = 3;
+  // The tags, at most 16, each 1 to 32 characters after trim, with no two the same.
+  repeated string tags = 4;
+  // The nodes of version 1: the rules of the nodes of a pipeline.
+  repeated scylla.pipelines.v1.Node nodes = 5;
+  // The parameters of version 1, at most 128. Each key is an environment variable of a node, and
+  // no two have the same key.
+  repeated FragmentParameter parameters = 6;
+  // The package that the fragment comes from. Not set for a fragment of the workspace.
+  NewFragmentOrigin origin = 7;
+}
+
+// The output of CreateFragment.
+message CreateFragmentResponse {
+  // The new fragment.
+  Fragment fragment = 1;
+}
+
+// The input of PublishFragmentVersion.
+message PublishFragmentVersionRequest {
+  // The fragment. Required.
+  scylla.common.v1.Id fragment_id = 1;
+  // The nodes of the new version: the rules of CreateFragment.
+  repeated scylla.pipelines.v1.Node nodes = 2;
+  // The parameters of the new version: the rules of CreateFragment.
+  repeated FragmentParameter parameters = 3;
+  // What changed, at most 20 lines of 1 to 200 characters.
+  repeated string changes = 4;
+}
+
+// The output of PublishFragmentVersion.
+message PublishFragmentVersionResponse {
+  // The fragment with its new version.
+  Fragment fragment = 1;
+}
+
+// The input of SetFragmentFavorite.
+message SetFragmentFavoriteRequest {
+  // The fragment. Required.
+  scylla.common.v1.Id fragment_id = 1;
+  // True to mark the fragment, false to remove the mark.
+  bool favorite = 2;
+}
+
+// The output of SetFragmentFavorite.
+message SetFragmentFavoriteResponse {}
+
+// The input of DeleteFragment.
+message DeleteFragmentRequest {
+  // The fragment. Required.
+  scylla.common.v1.Id fragment_id = 1;
+}
+
+// The output of DeleteFragment.
+message DeleteFragmentResponse {}
+
+// The input of AcceptOriginVersion.
+message AcceptOriginVersionRequest {
+  // The linked fragment. Required.
+  scylla.common.v1.Id fragment_id = 1;
+  // The number of the version in the package.
+  uint32 version = 2;
+  // The nodes of the version: the rules of CreateFragment.
+  repeated scylla.pipelines.v1.Node nodes = 3;
+  // The parameters of the version: the rules of CreateFragment.
+  repeated FragmentParameter parameters = 4;
+  // What changed, at most 20 lines of 1 to 200 characters.
+  repeated string changes = 5;
+}
+
+// The output of AcceptOriginVersion.
+message AcceptOriginVersionResponse {
+  // The fragment with its new version.
+  Fragment fragment = 1;
+}
+
+// The input of SkipOriginVersion.
+message SkipOriginVersionRequest {
+  // The linked fragment. Required.
+  scylla.common.v1.Id fragment_id = 1;
+  // The version of the package not to take.
+  uint32 version = 2;
+}
+
+// The output of SkipOriginVersion.
+message SkipOriginVersionResponse {
+  // The fragment.
+  Fragment fragment = 1;
+}
+
+// The input of DismissOriginVersion.
+message DismissOriginVersionRequest {
+  // The fork. Required.
+  scylla.common.v1.Id fragment_id = 1;
+  // The version of the package not to see.
+  uint32 version = 2;
+}
+
+// The output of DismissOriginVersion.
+message DismissOriginVersionResponse {
+  // The fragment.
+  Fragment fragment = 1;
+}
+
+// The input of DetachOrigin.
+message DetachOriginRequest {
+  // The linked fragment. Required.
+  scylla.common.v1.Id fragment_id = 1;
+}
+
+// The output of DetachOrigin.
+message DetachOriginResponse {
+  // The fragment.
+  Fragment fragment = 1;
+}
