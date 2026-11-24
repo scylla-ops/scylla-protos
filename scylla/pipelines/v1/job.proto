@@ -53,16 +53,20 @@ message Job {
   repeated FileError file_errors = 19;
   // The checkout of the code before the first node. Not set for a job with no checkout.
   CheckoutRun checkout = 20;
-  // Why a pending job waits, as a stable code: NO_AGENT_WITH_CHECKOUT (no agent that can get the
-  // code is online) or NO_AGENT_WITH_CONTAINER (no agent with a container runtime, and with the
-  // checkout when the job gets the code, is online). Empty for another job, and in the answers of
-  // RunPipeline and FireTriggerNow: read the job again.
+  // Why a pending job waits, as a stable code: NO_AGENT_WITH_LABELS (no agent with each label of
+  // agent_labels is online), NO_AGENT_WITH_CHECKOUT (no agent with the labels that can get the
+  // code is online) or NO_AGENT_WITH_CONTAINER (no agent with the labels and a container runtime,
+  // and with the checkout when the job gets the code, is online). Empty for another job, and in
+  // the answers of RunPipeline and FireTriggerNow: read the job again.
   string waiting_reason = 21;
   // With the waiting reason NO_AGENT_WITH_CHECKOUT: the online agents of the workspace that
   // cannot get the code, and why. Empty for another job.
   repeated UnfitAgent unfit_agents = 22;
   // What started the job. The server sets it at the creation, and it does not change.
   JobOrigin origin = 23;
+  // The labels that the agent of the job must have, each of them: the labels of its pipeline at
+  // the creation of the job. A new run keeps them. Empty: any agent of the project.
+  repeated string agent_labels = 24;
 }
 
 // An online agent that cannot run a pending job.
