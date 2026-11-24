@@ -107,6 +107,8 @@ message CreatePipelineRequest {
   CheckoutSettings checkout = 5;
   // The blocks that link a version of a fragment, at most 256: the rules of FragmentLink.
   repeated FragmentLink fragment_links = 6;
+  // What the agent of a job must have. Not set: any agent of the project.
+  AgentSettings agent = 7;
 }
 
 // The output of CreatePipeline.
@@ -146,6 +148,9 @@ message UpdatePipelineRequest {
   // The new fragment links: they replace all the links. The links after the change, new or kept,
   // must match the nodes after the change, else INVALID_ARGUMENT.
   FragmentLinkList fragment_links = 7;
+  // The new agent settings. They replace all the settings: an empty list of labels removes the
+  // labels.
+  AgentSettings agent = 8;
 }
 
 // A list of nodes, so a request can tell "no change" from "these nodes".

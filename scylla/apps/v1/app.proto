@@ -44,6 +44,15 @@ message App {
   // The last sample of the use of the machine of the agent, of the last 7 days. Not set when the
   // agent sent none. AgentService.GetAgentMetrics gives the samples of a period.
   HostSample last_sample = 14;
+  // The labels that the admins of the workspace gave to the App, in order. SetAppLabels changes
+  // them, and the App itself cannot. A job whose pipeline asks labels goes only to an agent with
+  // each of them, in labels or in automatic_labels.
+  repeated string labels = 15;
+  // The labels that the server gives to the agent from the host of its last hello: the operating
+  // system (linux, macos or windows), the architecture (x64 or arm64), and container when the
+  // agent has a container runtime. Empty before the first stream, and for an App that is not an
+  // agent.
+  repeated string automatic_labels = 16;
 }
 
 // How an agent fits the server.

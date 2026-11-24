@@ -35,6 +35,8 @@ message PipelineFile {
   repeated FileError errors = 11;
   // The pipeline of the project with this key. Not set when the project has none.
   scylla.common.v1.Id pipeline_id = 12;
+  // The agent settings of the file: the key agent. Not set when the file has errors.
+  AgentSettings agent = 13;
 }
 
 // The format of a pipeline file.
