@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package scylla.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// An API token: a long secret that a program exchanges with TokenService.ExchangeApiToken for a
+// short token of its actor. The secret starts with scya_ for an App, and with scyp_ for a
+// personal token of a user. The server keeps only a hash of the secret.
+message ApiToken {
+  // The id of the token.
+  scylla.common.v1.Id id = 1;
+  // The actor of the token: an App, or the user of a personal token.
+  scylla.common.v1.Id actor_id = 2;
+  // The name: one line, 1 to 100 characters.
+  string name = 3;
+  // The prefix and the last 4 characters of the secret, for example scya_...x7Q2.
+  string hint = 4;
+  // The actor that created the token.
+  scylla.common.v1.Id created_by = 5;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 6;
+  // The end of its validity.
+  google.protobuf.Timestamp expires_at = 7;
+  // The last exchange of the token. Not set before its first exchange.
+  google.protobuf.Timestamp last_used_at = 8;
+  // The time of its revocation. Not set for a token that is not revoked.
+  google.protobuf.Timestamp revoked_at = 9;
+  // What its short tokens can do, inside the rights of the actor.
+  TokenLimits limits = 10;
+}
+
+// The life of a new API token. A token always expires: 1 year at most.
+enum TokenExpiry {
+  // 90 days.
+  TOKEN_EXPIRY_UNSPECIFIED = 0;
+  // 7 days.
+  TOKEN_EXPIRY_DAYS_7 = 1;
+  // 30 days.
+  TOKEN_EXPIRY_DAYS_30 = 2;
+  // 90 days.
+  TOKEN_EXPIRY_DAYS_90 = 3;
+  // 365 days.
+  TOKEN_EXPIRY_DAYS_365 = 4;
+}
+
+// What the short tokens of an API token can do, inside the rights of its actor. The roles of the
+// actor still decide; the limits only remove rights.
+message TokenLimits {
+  // The methods that the token can call.
+  TokenPreset preset = 1;
+  // With TOKEN_PRESET_CUSTOM only: the methods that the token can call, 1 to 200, each as
+  // <package>.<Service>/<Method>, for example scylla.pipelines.v1.PipelineService/RunPipeline.
+  repeated string actions = 2;
+  // The projects that the token can reach, at most 100. Empty: no limit. Set: only the routes
+  // on one of these projects pass, and each route on a workspace or on a caller is refused.
+  repeated scylla.common.v1.Id project_ids = 3;
+}
+
+// A set of methods for an API token.
+enum TokenPreset {
+  // TOKEN_PRESET_READ_ONLY.
+  TOKEN_PRESET_UNSPECIFIED = 0;
+  // The methods whose names start with Get, List, Check or Tail.
+  TOKEN_PRESET_READ_ONLY = 1;
+  // The read-only methods, RunPipeline, FireTriggerNow, CancelJob and RerunJob.
+  TOKEN_PRESET_DEPLOY = 2;
+  // Each method that the roles of the actor allow.
+  TOKEN_PRESET_FULL = 3;
+  // The methods of actions only.
+  TOKEN_PRESET_CUSTOM = 4;
+}

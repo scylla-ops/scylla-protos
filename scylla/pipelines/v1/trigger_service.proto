@@ -1,0 +1,313 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/common/v1/page.proto";
+import "scylla/pipelines/v1/job.proto";
+import "scylla/pipelines/v1/trigger.proto";
+import "scylla/pipelines/v1/trigger_fire.proto";
+import "scylla/pipelines/v1/trigger_summary.proto";
+
+// Creates, reads, changes, lists, stops and fires the triggers of a pipeline, and gives the
+// history of their fires. Each RPC needs an authenticated actor, else UNAUTHENTICATED. An unknown
+// trigger gives PERMISSION_DENIED, as a refusal does. A role that manages the triggers also runs
+// the pipeline, so a trigger gives no new right.
+service TriggerService {
+  // Creates a trigger of a pipeline. A webhook trigger gives its secret one time: the server
+  // keeps it encrypted, and a server with no key gives FAILED_PRECONDITION with the reason
+  // SECRET_KEY_MISSING. A push, pull request or tag trigger needs a linked repository, else
+  // FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. On a file pipeline, it gives
+  // FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY: the on section of the file gives its
+  // Git triggers. A bad glob, more than 32 globs in a list, or an unknown event of a pull request
+  // gives INVALID_ARGUMENT on its field, for example push.exclude_branches[1]. A bad condition of a
+  // webhook gives INVALID_ARGUMENT on its field, for example webhook.conditions[0].json_pointer:
+  // more than 32 conditions, no source or operator, an empty header name, a JSON pointer that does
+  // not start with /, an empty value, a bad glob, or a wrong count of values.
+  rpc CreateTrigger(CreateTriggerRequest) returns (CreateTriggerResponse);
+  // Reads one trigger. The secret of a webhook is never in it.
+  rpc GetTrigger(GetTriggerRequest) returns (GetTriggerResponse);
+  // Changes the name, the schedule of a cron trigger, the rules of a push, pull request or tag
+  // trigger, the conditions of a webhook trigger, or the inputs. The kind does not change. Bad
+  // rules or conditions give INVALID_ARGUMENT, as in CreateTrigger.
+  rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse);
+  // Deletes a trigger. Its jobs stay.
+  rpc DeleteTrigger(DeleteTriggerRequest) returns (DeleteTriggerResponse);
+  // Lists the triggers of a pipeline, oldest first. The first page of a file pipeline starts
+  // with the read only triggers of the on section of its file: push, pull request, then tag.
+  rpc ListPipelineTriggers(ListPipelineTriggersRequest) returns (ListPipelineTriggersResponse);
+  // Starts or stops a trigger. A schedule that starts again fires at its next time after now.
+  rpc SetTriggerEnabled(SetTriggerEnabledRequest) returns (SetTriggerEnabledResponse);
+  // Fires a trigger now, with no body: a JSON pointer gives an empty text, and the conditions of a
+  // webhook are not read. A push, pull request or tag trigger runs its pipeline at the head of the
+  // default branch, and a file pipeline runs its file there, with the event TRIGGER. The read of
+  // that commit gives the codes of RunPipeline on a ref. The history of the fires keeps the fire
+  // with FIRE_SOURCE_MANUAL.
+  rpc FireTriggerNow(FireTriggerNowRequest) returns (FireTriggerNowResponse);
+  // Lists the triggers of a workspace, in the projects that the caller can see, with their next
+  // fires and their recent results, for the dashboard. The readers of the workspace see each
+  // project, and the viewers of a project see that project. A filter never causes a refusal: a
+  // caller with no role, or an unknown workspace, gets an empty list. The triggers of the on
+  // section of a pipeline file are not in the list: ListPipelineTriggers gives them. The server
+  // sorts the triggers at each call, so a trigger that moves between two calls can be on two pages
+  // or on no page. More than 100 project or pipeline ids, TRIGGER_KIND_UNSPECIFIED in kinds, or an
+  // upcoming window that is negative or above 7 days gives INVALID_ARGUMENT. The route permission
+  // is list_workspace_triggers.
+  rpc ListWorkspaceTriggers(ListWorkspaceTriggersRequest) returns (ListWorkspaceTriggersResponse);
+  // Lists the fires and the missed times of the triggers of a workspace, in the projects that the
+  // caller can see, newest due time first. The visibility is the one of ListWorkspaceTriggers. A
+  // to that is not after from, more than 100 project, pipeline or trigger ids,
+  // FIRE_STATUS_UNSPECIFIED in statuses, FIRE_SOURCE_UNSPECIFIED in sources, or
+  // TRIGGER_KIND_UNSPECIFIED in kinds gives INVALID_ARGUMENT. The route permission is
+  // list_trigger_fires.
+  rpc ListTriggerFires(ListTriggerFiresRequest) returns (ListTriggerFiresResponse);
+  // Returns the counts of the fires and of the missed times of the triggers of a workspace for a
+  // period, in the projects that the caller can see: the totals, the buckets and the groups. A
+  // fire counts in the period of its due time. The hours, days and weeks are in the time zone of
+  // the workspace. The visibility is the one of ListWorkspaceTriggers: a caller with no role gets
+  // counts at 0. No from, a to that is not after from, a period of more than 400 days, more than
+  // 1000 buckets, a group limit above 100, more than 100 project, pipeline or trigger ids, or
+  // FIRE_SOURCE_UNSPECIFIED in sources gives INVALID_ARGUMENT. The route permission is
+  // get_trigger_fire_stats.
+  rpc GetTriggerFireStats(GetTriggerFireStatsRequest) returns (GetTriggerFireStatsResponse);
+}
+
+// The input of CreateTrigger.
+message CreateTriggerRequest {
+  // The pipeline. Required.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The display name, 1 to 100 characters after trim, unique in the pipeline.
+  string name = 2;
+  // What starts the jobs. Required. The path of a webhook is not read.
+  oneof kind {
+    // A schedule.
+    Cron cron = 3;
+    // A webhook.
+    Webhook webhook = 4;
+    // A push to a branch of the linked repository.
+    Push push = 6;
+    // A pull request of the linked repository.
+    PullRequest pull_request = 7;
+    // A push of a tag of the linked repository.
+    Tag tag = 8;
+  }
+  // The inputs, at most 128 with unique names. A JSON pointer only for a webhook.
+  repeated TriggerInput inputs = 5;
+}
+
+// The output of CreateTrigger.
+message CreateTriggerResponse {
+  // The new trigger.
+  Trigger trigger = 1;
+  // The secret of a webhook in hex, one time: the server keeps it encrypted. Empty for another
+  // kind.
+  string webhook_secret = 2;
+}
+
+// The input of GetTrigger.
+message GetTriggerRequest {
+  // The trigger. Required.
+  scylla.common.v1.Id trigger_id = 1;
+}
+
+// The output of GetTrigger.
+message GetTriggerResponse {
+  // The trigger.
+  Trigger trigger = 1;
+}
+
+// The input of UpdateTrigger. A field that is not set does not change.
+message UpdateTriggerRequest {
+  // The trigger. Required.
+  scylla.common.v1.Id trigger_id = 1;
+  // The new display name.
+  optional string name = 2;
+  // The new schedule of a cron trigger.
+  optional string schedule = 3;
+  // The new inputs. They replace all the inputs.
+  TriggerInputList inputs = 4;
+  // The new rules of a push, pull request or tag trigger, or the new conditions of a webhook
+  // trigger. They replace all the rules or conditions. Rules of another kind than the kind of the
+  // trigger give INVALID_ARGUMENT.
+  oneof rules {
+    // The rules of a push trigger.
+    Push push = 5;
+    // The rules of a pull request trigger.
+    PullRequest pull_request = 6;
+    // The rules of a tag trigger.
+    Tag tag = 7;
+    // The conditions of a webhook trigger. The path is not read.
+    Webhook webhook = 8;
+  }
+}
+
+// A list of inputs, so a request can tell "no change" from "these inputs".
+message TriggerInputList {
+  // The inputs.
+  repeated TriggerInput inputs = 1;
+}
+
+// The output of UpdateTrigger.
+message UpdateTriggerResponse {
+  // The changed trigger.
+  Trigger trigger = 1;
+}
+
+// The input of DeleteTrigger.
+message DeleteTriggerRequest {
+  // The trigger. Required.
+  scylla.common.v1.Id trigger_id = 1;
+}
+
+// The output of DeleteTrigger.
+message DeleteTriggerResponse {}
+
+// The input of ListPipelineTriggers.
+message ListPipelineTriggersRequest {
+  // The pipeline. Required.
+  scylla.common.v1.Id pipeline_id = 1;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 2;
+}
+
+// The output of ListPipelineTriggers.
+message ListPipelineTriggersResponse {
+  // The triggers of the page, oldest first.
+  repeated Trigger triggers = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of SetTriggerEnabled.
+message SetTriggerEnabledRequest {
+  // The trigger. Required.
+  scylla.common.v1.Id trigger_id = 1;
+  // True starts the trigger, false stops it.
+  bool enabled = 2;
+}
+
+// The output of SetTriggerEnabled.
+message SetTriggerEnabledResponse {
+  // The trigger.
+  Trigger trigger = 1;
+}
+
+// The input of FireTriggerNow.
+message FireTriggerNowRequest {
+  // The trigger. Required.
+  scylla.common.v1.Id trigger_id = 1;
+}
+
+// The output of FireTriggerNow.
+message FireTriggerNowResponse {
+  // The new job: pending, or failed for a pipeline file with errors. Its waiting_reason is
+  // empty: read the job again to get it.
+  Job job = 1;
+}
+
+// The input of ListWorkspaceTriggers.
+message ListWorkspaceTriggersRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // Only the triggers of these projects, at most 100. Empty gives each project that the caller
+  // can see.
+  repeated scylla.common.v1.Id project_ids = 2;
+  // Only the triggers of these pipelines, at most 100. Empty gives each pipeline.
+  repeated scylla.common.v1.Id pipeline_ids = 3;
+  // Only the triggers of these kinds. Empty gives each kind.
+  repeated TriggerKind kinds = 4;
+  // True gives only the enabled triggers.
+  bool enabled_only = 5;
+  // The order of the triggers.
+  TriggerOrder order = 6;
+  // The window of upcoming_fires, from now, at most 7 days. Not set gives no upcoming fire.
+  google.protobuf.Duration upcoming = 7;
+  // The start of the period of failed_fires and missed_times. Not set gives 24 hours before now.
+  google.protobuf.Timestamp since = 8;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 9;
+}
+
+// The output of ListWorkspaceTriggers.
+message ListWorkspaceTriggersResponse {
+  // The triggers of the page, in the order of the request.
+  repeated TriggerSummary triggers = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+  // The IANA time zone of the workspace, for example Europe/Paris: the cron schedules use it.
+  string time_zone = 3;
+}
+
+// The input of ListTriggerFires.
+message ListTriggerFiresRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // Only the fires of these projects, at most 100. Empty gives each project that the caller can
+  // see.
+  repeated scylla.common.v1.Id project_ids = 2;
+  // Only the fires of these pipelines, at most 100. Empty gives each pipeline.
+  repeated scylla.common.v1.Id pipeline_ids = 3;
+  // Only the fires of these triggers, at most 100. Empty gives each trigger.
+  repeated scylla.common.v1.Id trigger_ids = 4;
+  // Only the fires of the triggers of these kinds. Empty gives each kind.
+  repeated TriggerKind kinds = 5;
+  // Only the fires with these results. Empty gives each result.
+  repeated FireStatus statuses = 6;
+  // Only the fires from these sources. Empty gives each source.
+  repeated FireSource sources = 7;
+  // Only the fires due at this time or later. Not set gives no limit.
+  google.protobuf.Timestamp from = 8;
+  // Only the fires due before this time. Not set gives no limit.
+  google.protobuf.Timestamp to = 9;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 10;
+}
+
+// The output of ListTriggerFires.
+message ListTriggerFiresResponse {
+  // The fires of the page, newest due time first.
+  repeated TriggerFire fires = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of GetTriggerFireStats.
+message GetTriggerFireStatsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // Only the fires of these projects, at most 100. Empty gives each project that the caller can
+  // see.
+  repeated scylla.common.v1.Id project_ids = 2;
+  // Only the fires of these pipelines, at most 100. Empty gives each pipeline.
+  repeated scylla.common.v1.Id pipeline_ids = 3;
+  // Only the fires of these triggers, at most 100. Empty gives each trigger.
+  repeated scylla.common.v1.Id trigger_ids = 4;
+  // Only the fires from these sources. Empty gives each source.
+  repeated FireSource sources = 5;
+  // The start of the period: the fires due at this time or later. Required.
+  google.protobuf.Timestamp from = 6;
+  // The end of the period: the fires due before this time. Not set: now.
+  google.protobuf.Timestamp to = 7;
+  // The size of the buckets. Not set gives no bucket.
+  FireStatsBucket bucket = 8;
+  // What makes the groups. Not set gives no group.
+  FireStatsGroup group_by = 9;
+  // The most groups to give, at most 100. 0 gives 20. The groups with the most failed fires and
+  // missed times come first, then the groups with the most fires.
+  uint32 group_limit = 10;
+}
+
+// The output of GetTriggerFireStats.
+message GetTriggerFireStatsResponse {
+  // The fires of the period.
+  TriggerFireFigures totals = 1;
+  // Each bucket of the period, oldest first, also the buckets with no fire.
+  repeated TriggerFireBucket buckets = 2;
+  // The first groups: the most failed fires and missed times first, then the most fires.
+  repeated TriggerFireGroup groups = 3;
+  // The IANA time zone of the workspace, for example Europe/Paris: the buckets start at the
+  // hours, days and weeks of this zone.
+  string time_zone = 4;
+}

@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package scylla.integrations.v1;
+
+import "scylla/common/v1/id.proto";
+import "scylla/integrations/v1/vcs.proto";
+
+// Sets the rules on the provider that block the merge into the default branch when a pipeline
+// fails. Each RPC needs an authenticated actor, else UNAUTHENTICATED. An unknown project gives
+// PERMISSION_DENIED, as a refusal does.
+service MergeBlockService {
+  // Lists the merge rules of a project: one for each pipeline on GitHub, one for the project on
+  // GitLab. A pipeline with no rule is in the list with the state off. An archived or removed
+  // pipeline is not in the list, except when its rule is on. A project with no link gives an
+  // empty list. The route permission is list_merge_blocks: the readers of the project.
+  rpc ListMergeBlocks(ListMergeBlocksRequest) returns (ListMergeBlocksResponse);
+  // Turns a merge rule on or off, then changes the rule on the provider. With no permission or
+  // no role on the provider, the rule gets the state NEEDS_PERMISSION, and nothing changes on the
+  // provider. A project with no link gives FAILED_PRECONDITION with the reason
+  // NO_REPOSITORY_LINK, and a link or a connection that is not active gives the reason
+  // REPOSITORY_NOT_ACTIVE. A pipeline that is not of the project gives NOT_FOUND. A server with
+  // no GitHub App for the connection gives the reason APP_MISSING, and a server with no key of
+  // the secrets gives the reason SECRET_KEY_MISSING. The route permission is set_merge_block:
+  // the editors of the project.
+  rpc SetMergeBlock(SetMergeBlockRequest) returns (SetMergeBlockResponse);
+}
+
+// The input of ListMergeBlocks.
+message ListMergeBlocksRequest {
+  // The project. Required.
+  scylla.common.v1.Id project_id = 1;
+}
+
+// The output of ListMergeBlocks.
+message ListMergeBlocksResponse {
+  // The rules, in the order of the pipelines.
+  repeated MergeBlock blocks = 1;
+}
+
+// The input of SetMergeBlock.
+message SetMergeBlockRequest {
+  // The project. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The pipeline of the project. Required on GitHub. Not set on GitLab, where the rule is for
+  // the project: a pipeline there gives INVALID_ARGUMENT.
+  scylla.common.v1.Id pipeline_id = 2;
+  // True turns the rule on, false turns it off.
+  bool enabled = 3;
+}
+
+// The output of SetMergeBlock.
+message SetMergeBlockResponse {
+  // The rule after the change.
+  MergeBlock block = 1;
+}

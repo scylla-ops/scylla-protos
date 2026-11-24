@@ -1,0 +1,277 @@
+syntax = "proto3";
+
+package scylla.integrations.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/common/v1/page.proto";
+import "scylla/integrations/v1/delivery_stats.proto";
+import "scylla/integrations/v1/vcs.proto";
+
+// Connects a workspace to GitHub and GitLab, and lists the repositories of a connection. Each
+// RPC needs an authenticated actor, else UNAUTHENTICATED. An unknown connection gives
+// PERMISSION_DENIED, as a refusal does. A token that a request sends never comes back in an
+// answer or in a log. A call to the provider that fails gives FAILED_PRECONDITION with the reason
+// PROVIDER_REFUSED (the provider refused the credentials of the connection) or
+// PROVIDER_UNAVAILABLE (the provider failed or limits the calls: try again later).
+service VcsConnectionService {
+  // Lists the Git providers, and tells if the workspace can connect each one. The route
+  // permission is get_vcs_providers: the readers of the workspace.
+  rpc GetVcsProviders(GetVcsProvidersRequest) returns (GetVcsProvidersResponse);
+  // Lists the connections of a workspace, oldest first. The route permission is
+  // list_vcs_connections: the readers of the workspace.
+  rpc ListVcsConnections(ListVcsConnectionsRequest) returns (ListVcsConnectionsResponse);
+  // Reads one connection. The route permission is get_vcs_connection: the readers of the
+  // workspace.
+  rpc GetVcsConnection(GetVcsConnectionRequest) returns (GetVcsConnectionResponse);
+  // Starts the connection of the GitHub App for a workspace. It gives the authorize page of the
+  // App with a random state: 10 minutes, for this workspace and this caller only. GitHub comes
+  // back from there with a code, and CompleteGitHubInstall gives the installations that the user
+  // can connect. An instance with no GitHub App gives FAILED_PRECONDITION with the reason
+  // APP_MISSING, and a server with no key to open the GitHub App of the instance gives the reason
+  // SECRET_KEY_MISSING. The route permission is start_git_hub_install: the admins of the
+  // workspace.
+  rpc StartGitHubInstall(StartGitHubInstallRequest) returns (StartGitHubInstallResponse);
+  // Makes the connection after the install on GitHub, or refreshes it after a change of the
+  // install, with the values of the redirect of GitHub. The server exchanges the code for a token
+  // of the user, and the user must see the installation on GitHub. After the authorize page of
+  // StartGitHubInstall (a code and a state, no installation, no setup action), it gives the
+  // installations of the App that the user sees and that have no connection in the workspace,
+  // and the state stays open for one of them or for the install page. The route permission is
+  // complete_git_hub_install on the workspace of the state: its admins. A refusal is
+  // FAILED_PRECONDITION with the reason STATE_EXPIRED (an unknown, used or old state, the state
+  // of another user, or a code that GitHub refuses), INSTALLATION_NOT_VISIBLE, INSTALL_CANCELLED
+  // or INSTALL_PENDING_APPROVAL (an owner of the organization must approve the request on
+  // GitHub).
+  rpc CompleteGitHubInstall(CompleteGitHubInstallRequest) returns (CompleteGitHubInstallResponse);
+  // Connects GitLab.com with the token of a service account. The server reads the scopes, the
+  // expiry and the account of the token, then seals the token. A token that GitLab refuses gives
+  // FAILED_PRECONDITION with the reason TOKEN_INVALID, and a token with no scope api gives the
+  // reason TOKEN_SCOPE_MISSING. A server with no key of the secrets gives FAILED_PRECONDITION with
+  // the reason SECRET_KEY_MISSING. An account that has a connection in the workspace gives
+  // FAILED_PRECONDITION with the reason CONNECTION_EXISTS: replace its token. The route permission
+  // is connect_git_lab: the admins of the workspace.
+  rpc ConnectGitLab(ConnectGitLabRequest) returns (ConnectGitLabResponse);
+  // Replaces the token of a GitLab connection, with the checks of ConnectGitLab, and makes the
+  // connection active. A token of another account gives FAILED_PRECONDITION with the reason
+  // ACCOUNT_CHANGED, and a GitHub connection gives INVALID_ARGUMENT. The route permission is
+  // replace_git_lab_token: the admins of the workspace.
+  rpc ReplaceGitLabToken(ReplaceGitLabTokenRequest) returns (ReplaceGitLabTokenResponse);
+  // Deletes a connection with the links of its repositories. The server first deletes the
+  // webhooks that it made on GitLab, when it can. The App stays installed on GitHub. The jobs
+  // stay. The route permission is delete_vcs_connection: the admins of the workspace.
+  rpc DeleteVcsConnection(DeleteVcsConnectionRequest) returns (DeleteVcsConnectionResponse);
+  // Lists the repositories that a connection can see, for the link of a project, in the order of
+  // the provider. On GitLab, only the projects where the service account is Developer or more.
+  // A connection of another workspace gives PERMISSION_DENIED. The request names the project, or
+  // the workspace of a project to create: no target, or both, gives INVALID_ARGUMENT. The route
+  // permission is list_connection_repositories: on the project, its editors; on the workspace,
+  // its members.
+  rpc ListConnectionRepositories(ListConnectionRepositoriesRequest) returns (ListConnectionRepositoriesResponse);
+  // Returns the counts of the webhook deliveries of a workspace for a period: the totals, each
+  // connection, each webhook trigger and the buckets. A delivery counts in the period of its
+  // arrival. The hours, days and weeks are in the time zone of the workspace. The triggers are
+  // the webhook triggers of the projects whose fires the caller can count with
+  // GetTriggerFireStats. The server keeps the deliveries and the fires for 30 days: a period that
+  // starts before has no older delivery. No from, a to that is not after from, a period of more
+  // than 400 days, or more than 1000 buckets gives INVALID_ARGUMENT. The route permission is
+  // get_delivery_stats: the readers of the workspace.
+  rpc GetDeliveryStats(GetDeliveryStatsRequest) returns (GetDeliveryStatsResponse);
+}
+
+// The input of GetVcsProviders.
+message GetVcsProvidersRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+}
+
+// The output of GetVcsProviders.
+message GetVcsProvidersResponse {
+  // GitHub, then GitLab.
+  repeated VcsProviderInfo providers = 1;
+}
+
+// The input of ListVcsConnections.
+message ListVcsConnectionsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 2;
+}
+
+// The output of ListVcsConnections.
+message ListVcsConnectionsResponse {
+  // The connections of the page, oldest first.
+  repeated VcsConnection connections = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of GetVcsConnection.
+message GetVcsConnectionRequest {
+  // The connection. Required.
+  scylla.common.v1.Id connection_id = 1;
+}
+
+// The output of GetVcsConnection.
+message GetVcsConnectionResponse {
+  // The connection.
+  VcsConnection connection = 1;
+}
+
+// The input of StartGitHubInstall.
+message StartGitHubInstallRequest {
+  // The workspace of the new connection. Required.
+  scylla.common.v1.Id workspace_id = 1;
+}
+
+// The output of StartGitHubInstall.
+message StartGitHubInstallResponse {
+  // The page of GitHub where the connection starts: the authorize page of the App, with the
+  // state. The browser goes there.
+  string install_url = 1;
+  // The end of the validity of the state.
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// The input of CompleteGitHubInstall: the values of the redirect of GitHub.
+message CompleteGitHubInstallRequest {
+  // The state of StartGitHubInstall. Required.
+  string state = 1;
+  // The id of the installation. Empty when the install was cancelled, and after an authorize
+  // page.
+  string installation_id = 2;
+  // The code of the authorization of the user. Required for an install.
+  string code = 3;
+  // What GitHub did: install, update or request. Empty after an authorize page.
+  string setup_action = 4;
+}
+
+// The output of CompleteGitHubInstall.
+message CompleteGitHubInstallResponse {
+  // What the server did with the redirect.
+  oneof outcome {
+    // The new or refreshed connection.
+    VcsConnection connection = 1;
+    // The installations to choose from, after the authorize page of StartGitHubInstall.
+    GitHubInstallChoice choice = 2;
+  }
+}
+
+// The installations of the GitHub App that a user can connect to a workspace, and the install
+// page for another account.
+message GitHubInstallChoice {
+  // The installations that the user sees on GitHub and that have no connection in the
+  // workspace, in the order of GitHub. Empty when the user must install the App first.
+  repeated GitHubInstallationOption installations = 1;
+  // The install page of the App on GitHub, with the state: an install on another account.
+  string install_url = 2;
+}
+
+// An installation of the GitHub App that a user can connect to a workspace.
+message GitHubInstallationOption {
+  // The id of the installation on GitHub.
+  string installation_id = 1;
+  // The login of the account of the installation, for example acme.
+  string account = 2;
+  // The kind of the account: an organization or a user.
+  AccountKind account_kind = 3;
+  // The address of the avatar of the account. Empty when GitHub gives none.
+  string avatar_url = 4;
+  // The authorize page of the App, with the state and the installation. The browser goes there
+  // to connect this installation.
+  string connect_url = 5;
+}
+
+// The input of ConnectGitLab.
+message ConnectGitLabRequest {
+  // The workspace of the new connection. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The personal access token of the service account, with the scope api. Required.
+  string token = 2;
+}
+
+// The output of ConnectGitLab.
+message ConnectGitLabResponse {
+  // The new connection.
+  VcsConnection connection = 1;
+  // The warnings of the check, as stable codes: NOT_A_SERVICE_ACCOUNT, TOKEN_EXPIRES_SOON (in
+  // less than 14 days) and ROLE_DEVELOPER (Scylla can report, but cannot make the webhook or
+  // block a merge).
+  repeated string warnings = 2;
+}
+
+// The input of ReplaceGitLabToken.
+message ReplaceGitLabTokenRequest {
+  // The connection. Required.
+  scylla.common.v1.Id connection_id = 1;
+  // The new personal access token of the same account. Required.
+  string token = 2;
+}
+
+// The output of ReplaceGitLabToken.
+message ReplaceGitLabTokenResponse {
+  // The connection with the new token.
+  VcsConnection connection = 1;
+  // The warnings of the check, as in ConnectGitLabResponse.
+  repeated string warnings = 2;
+}
+
+// The input of DeleteVcsConnection.
+message DeleteVcsConnectionRequest {
+  // The connection. Required.
+  scylla.common.v1.Id connection_id = 1;
+}
+
+// The output of DeleteVcsConnection.
+message DeleteVcsConnectionResponse {}
+
+// The input of ListConnectionRepositories.
+message ListConnectionRepositoriesRequest {
+  // The project to link. Required when workspace_id is not set.
+  scylla.common.v1.Id project_id = 1;
+  // The connection, of the workspace of the project. Required.
+  scylla.common.v1.Id connection_id = 2;
+  // Only the repositories with this text in their full name. Empty gives all.
+  string search = 3;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 4;
+  // The workspace of a project to create, in place of project_id.
+  scylla.common.v1.Id workspace_id = 5;
+}
+
+// The output of ListConnectionRepositories.
+message ListConnectionRepositoriesResponse {
+  // The repositories of the page.
+  repeated Repository repositories = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of GetDeliveryStats.
+message GetDeliveryStatsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The start of the period: the deliveries that arrived at this time or later. Required.
+  google.protobuf.Timestamp from = 2;
+  // The end of the period: the deliveries that arrived before this time. Not set: now.
+  google.protobuf.Timestamp to = 3;
+  // The size of the buckets. Not set gives no bucket.
+  DeliveryStatsBucket bucket = 4;
+}
+
+// The output of GetDeliveryStats.
+message GetDeliveryStatsResponse {
+  // The deliveries of the period: the connections and the webhook triggers.
+  DeliveryFigures totals = 1;
+  // Each connection with a delivery in the period, oldest connection first.
+  repeated ConnectionDeliveries connections = 2;
+  // Each webhook trigger with a delivery in the period: the most failed deliveries first, then
+  // the most deliveries.
+  repeated TriggerDeliveries triggers = 3;
+  // Each bucket of the period, oldest first, also the buckets with no delivery.
+  repeated DeliveryBucket buckets = 4;
+  // The IANA time zone of the workspace, for example Europe/Paris: the buckets start at the
+  // hours, days and weeks of this zone.
+  string time_zone = 5;
+}

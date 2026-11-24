@@ -1,0 +1,293 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/integrations/v1/vcs.proto";
+import "scylla/pipelines/v1/source.proto";
+
+// A pipeline of a project: a graph of nodes that a job runs on an agent.
+message Pipeline {
+  // The id of the pipeline.
+  scylla.common.v1.Id id = 1;
+  // The project of the pipeline.
+  scylla.common.v1.Id project_id = 2;
+  // The workspace of the project.
+  scylla.common.v1.Id workspace_id = 3;
+  // The actor that created the pipeline.
+  scylla.common.v1.Id created_by = 4;
+  // The display name.
+  string name = 5;
+  // The nodes.
+  repeated Node nodes = 6;
+  // The version: 1 at the creation, and one more at each change. UpdatePipeline needs it.
+  int64 version = 7;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 8;
+  // The time of the last change.
+  google.protobuf.Timestamp updated_at = 9;
+  // Where the pipeline comes from: the editor, or a file of the linked repository. A file
+  // pipeline is read only: change its file.
+  scylla.integrations.v1.PipelineSource source = 10;
+  // The key of a file pipeline: pipeline for .scylla/pipeline.<ext>, else the name of its file
+  // with no extension. Empty for an editor pipeline.
+  string file_key = 11;
+  // The path of the file of a file pipeline on the default branch, for example
+  // .scylla/pipelines/build.toml. Empty for an editor pipeline.
+  string file_path = 12;
+  // How the agent gets the code before the first node. Always set, with the defaults for the
+  // values that nobody set.
+  CheckoutSettings checkout = 13;
+  // The time when the project moved to the other source: an editor pipeline is archived when the
+  // project moves to the repository files, and a file pipeline when the project moves back to
+  // the editor. An archived pipeline is read only, and its triggers stop. Not set for an active
+  // pipeline.
+  google.protobuf.Timestamp archived_at = 14;
+  // The time when the server saw that the file of a file pipeline is not on the default branch:
+  // the file left it, or a run on another branch made the pipeline. Its jobs stay. Not set while
+  // the file is on the default branch.
+  google.protobuf.Timestamp removed_at = 15;
+  // The number of errors of the file of a file pipeline on the default branch.
+  uint32 file_error_count = 16;
+  // The blocks of the pipeline that link a version of a fragment of the library.
+  repeated FragmentLink fragment_links = 17;
+}
+
+// A block of a pipeline that links a version of a fragment of the library of its workspace. The
+// pipeline keeps the nodes of the block, so a job runs them as the other nodes. The server does
+// not check that the fragment exists: a deleted fragment leaves its links.
+message FragmentLink {
+  // The id of the block in the graph: the rule of a node id, and no node of the pipeline has it.
+  string block_id = 1;
+  // The fragment. Required.
+  scylla.common.v1.Id fragment_id = 2;
+  // The version of the fragment that the block holds, 1 or more.
+  uint32 version = 3;
+  // The values that the pipeline gives to the parameters, by key: at most 128, each key the name
+  // of an environment variable and each value at most 65536 bytes.
+  map<string, string> values = 4;
+  // The nodes of the pipeline that the block holds: 1 to 256, each in one block only.
+  repeated string node_ids = 5;
+  // The newest version that the pipeline chose not to take.
+  optional uint32 skipped_version = 6;
+}
+
+// A list of fragment links, so a request can tell "no change" from "no link".
+message FragmentLinkList {
+  // The links, at most 256, with no two the same block id.
+  repeated FragmentLink links = 1;
+}
+
+// The places of the nodes on the canvas of a pipeline.
+message PipelineLayout {
+  // The place of the start node of the canvas. It is not a node of the pipeline.
+  Position start = 1;
+  // The place of each node, by the id of the node, at most 256. A node with no entry gets an
+  // automatic place.
+  map<string, Position> nodes = 2;
+}
+
+// A place on the canvas, in whole pixels of the graph. A value is -1000000 to 1000000.
+message Position {
+  // The horizontal place.
+  sint32 x = 1;
+  // The vertical place.
+  sint32 y = 2;
+}
+
+// A node of a pipeline. The agent waits until each need of a node ended. A run node or a switch
+// then runs if each of its needs is open, and a merge runs if one need or more is open. Else the
+// node is skipped.
+message Node {
+  // The id: 1 to 128 lower case letters, digits, dashes or underscores, unique in the pipeline.
+  string id = 1;
+  // The needs: each names another node, with a port or no port. A pair of a node and a port comes
+  // one time only. No cycle.
+  repeated Need needs = 2;
+  // What the node does. Required.
+  oneof step {
+    // A program and its arguments, with no shell.
+    Exec exec = 3;
+    // A script for a shell, at most 1 MiB.
+    Script script = 4;
+    // A switch: the agent checks its cases and opens one port or more. It has no process, no
+    // retries, no working_dir and no container.
+    Switch switch = 10;
+    // A merge: it joins branches again. It needs one need or more, and it has no env, no
+    // retries, no working_dir and no container.
+    Merge merge = 11;
+  }
+  // The environment, at most 128 variables with unique names. A name does not start with
+  // SCYLLA_.
+  repeated EnvVar env = 5;
+  // The longest run of one attempt, 1 to 604800 seconds. 0 gives 3600.
+  uint32 timeout_seconds = 6;
+  // The number of new attempts after a failure, 0 to 10.
+  uint32 retries = 7;
+  // The work folder, relative to the folder of the job, with no .. part. Empty is the folder
+  // of the job.
+  string working_dir = 8;
+  // The container of the node. Not set runs the node as a child process of the agent.
+  Container container = 9;
+}
+
+// A need of a node.
+message Need {
+  // The id of another node of the pipeline.
+  string node = 1;
+  // The port: 1 to 128 lower case letters, digits, dashes or underscores. Empty opens when the
+  // node completed. On a switch, a port of a case or the otherwise port opens when the switch
+  // chose it. On a run node, error opens when the node failed after its last attempt. A merge
+  // has no port.
+  string port = 2;
+}
+
+// A program and its arguments.
+message Exec {
+  // The program, then its arguments. The program is required.
+  repeated string argv = 1;
+}
+
+// A script.
+message Script {
+  // The shell. Not set gives sh.
+  Shell shell = 1;
+  // The text of the script.
+  string source = 2;
+}
+
+// The shell of a script.
+enum Shell {
+  // sh, as SHELL_SH.
+  SHELL_UNSPECIFIED = 0;
+  // sh -e.
+  SHELL_SH = 1;
+  // bash -o pipefail -e.
+  SHELL_BASH = 2;
+}
+
+// An environment variable of a node.
+message EnvVar {
+  // The name: a letter or an underscore, then letters, digits or underscores.
+  string name = 1;
+  // The value. Required.
+  oneof value {
+    // A text in clear.
+    string literal = 2;
+    // The name of a secret of the project. The agent gets its value at the dispatch, and
+    // masks it in the logs.
+    string secret = 3;
+  }
+}
+
+// The container of a node. Only an agent with a container runtime runs it.
+message Container {
+  // The image, for example rust:1.97.
+  string image = 1;
+}
+
+// A switch: it checks its cases in order and opens the port of the first case that matches, or of
+// each case that matches.
+message Switch {
+  // The cases: 1 to 16, with unique ports.
+  repeated Case cases = 1;
+  // The port to open when no case matches. Empty opens no port. It is not a port of a case, and
+  // not error.
+  string otherwise = 2;
+  // True opens the port of each case that matches. False opens the port of the first case only.
+  bool all_matches = 3;
+}
+
+// A case of a switch.
+message Case {
+  // The port that the case opens: 1 to 128 lower case letters, digits, dashes or underscores. Not
+  // error: that name is the port of a failure of a node that runs a step.
+  string port = 1;
+  // How the rules combine. Not set gives COMBINATOR_ALL.
+  Combinator combinator = 2;
+  // The rules: 1 to 32.
+  repeated Rule rules = 3;
+}
+
+// How the rules of a case combine.
+enum Combinator {
+  // COMBINATOR_ALL.
+  COMBINATOR_UNSPECIFIED = 0;
+  // The case matches when each rule matches.
+  COMBINATOR_ALL = 1;
+  // The case matches when one rule or more matches.
+  COMBINATOR_ANY = 2;
+}
+
+// A rule of a case: a test of a left value against a right value.
+message Rule {
+  // The left value. Required.
+  Operand left = 1;
+  // The test. Required.
+  Test test = 2;
+  // The right value. Required, except for TEST_EMPTY and TEST_NOT_EMPTY, which refuse it.
+  Operand right = 3;
+}
+
+// A value of a rule. A literal of a number test must be a number.
+message Operand {
+  // The value. Required.
+  oneof value {
+    // A text, at most 64 KiB.
+    string literal = 1;
+    // The name of a variable that the switch node gets: its env, the SCYLLA_ variables of the
+    // agent, and SCYLLA_ERROR. A missing variable gives an empty text.
+    string var = 2;
+    // A key of the output file of a node. A missing file, a missing key, or a node that did not
+    // run gives an empty text.
+    NodeOutput output = 3;
+  }
+}
+
+// A key of the output file of a node. A step writes KEY=value lines to the file in
+// $SCYLLA_OUTPUT.
+message NodeOutput {
+  // The id of a run node that the switch reaches through its needs.
+  string node = 1;
+  // The key: a letter or an underscore, then letters, digits or underscores.
+  string key = 2;
+}
+
+// The test of a rule. A text test compares the texts as they are. A number test reads each
+// trimmed text as a finite number, and a text that is not a number fails the switch.
+enum Test {
+  // Not used.
+  TEST_UNSPECIFIED = 0;
+  // The two texts are equal.
+  TEST_EQUALS = 1;
+  // The two texts are not equal.
+  TEST_NOT_EQUALS = 2;
+  // The left text contains the right text.
+  TEST_CONTAINS = 3;
+  // The left text does not contain the right text.
+  TEST_NOT_CONTAINS = 4;
+  // The left text starts with the right text.
+  TEST_STARTS_WITH = 5;
+  // The left text ends with the right text.
+  TEST_ENDS_WITH = 6;
+  // The left text is empty. No right value.
+  TEST_EMPTY = 7;
+  // The left text is not empty. No right value.
+  TEST_NOT_EMPTY = 8;
+  // The two numbers are equal.
+  TEST_NUMBER_EQ = 9;
+  // The two numbers are not equal.
+  TEST_NUMBER_NE = 10;
+  // The left number is greater than the right number.
+  TEST_NUMBER_GT = 11;
+  // The left number is greater than or equal to the right number.
+  TEST_NUMBER_GE = 12;
+  // The left number is less than the right number.
+  TEST_NUMBER_LT = 13;
+  // The left number is less than or equal to the right number.
+  TEST_NUMBER_LE = 14;
+}
+
+// A merge: it has no fields.
+message Merge {}

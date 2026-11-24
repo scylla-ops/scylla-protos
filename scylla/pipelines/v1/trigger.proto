@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// A trigger of a pipeline: a cron schedule, a webhook, or an event of the linked repository that
+// starts a job. The jobs of the triggers of a workspace have the runner of the triggers of the
+// workspace as their author.
+message Trigger {
+  // The id of the trigger.
+  scylla.common.v1.Id id = 1;
+  // The pipeline.
+  scylla.common.v1.Id pipeline_id = 2;
+  // The project of the pipeline.
+  scylla.common.v1.Id project_id = 3;
+  // The workspace of the project.
+  scylla.common.v1.Id workspace_id = 4;
+  // The actor that created the trigger.
+  scylla.common.v1.Id created_by = 5;
+  // The display name, unique in the pipeline.
+  string name = 6;
+  // What starts the jobs.
+  oneof kind {
+    // A schedule.
+    Cron cron = 7;
+    // A webhook.
+    Webhook webhook = 8;
+    // A push to a branch of the linked repository.
+    Push push = 17;
+    // A pull request of the linked repository.
+    PullRequest pull_request = 18;
+    // A push of a tag of the linked repository.
+    Tag tag = 19;
+  }
+  // The inputs: each node of a job gets them in its environment. A variable of the node with the
+  // same name wins.
+  repeated TriggerInput inputs = 9;
+  // False stops the trigger: its schedule does not fire, and its webhook gives 404.
+  bool enabled = 10;
+  // The next fire of a schedule.
+  google.protobuf.Timestamp next_fire_at = 11;
+  // The last fire.
+  google.protobuf.Timestamp last_fired_at = 12;
+  // The result of the last fire: FIRE_STATUS_OK, FIRE_STATUS_ERROR or FIRE_STATUS_SKIPPED. A
+  // missed time does not change it.
+  FireStatus last_status = 13;
+  // The reason of a last fire that failed or that the conditions of a webhook skipped.
+  string last_error = 14;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 15;
+  // The time of the last change.
+  google.protobuf.Timestamp updated_at = 16;
+  // True for a trigger from the on section of a pipeline file. It is read only: change the file.
+  bool from_file = 20;
+}
+
+// A schedule of 5 cron fields (minute, hour, day of the month, month, day of the week), in the
+// time zone of the workspace. On the night of the change to summer time, a time that does not
+// exist does not fire. On the night of the change to winter time, a time that occurs two times
+// fires one time, at its first occurrence. A change of the time zone of the workspace computes the
+// next fire again.
+message Cron {
+  // The schedule, for example "0 3 * * 1-5".
+  string schedule = 1;
+}
+
+// A webhook. A request goes to POST /webhooks/{id} on the API URL, with the HMAC-SHA256 of the
+// body in the header X-Scylla-Signature-256 or X-Hub-Signature-256, with or without the prefix
+// sha256=. A key in X-Scylla-Delivery or X-GitHub-Delivery stops a second fire of one delivery.
+// After these checks, a delivery that does not match all the conditions gets 200 and no job: the
+// history keeps it with FIRE_STATUS_SKIPPED and the reason.
+message Webhook {
+  // The path of the route of the trigger.
+  string path = 1;
+  // The conditions on each delivery, at most 32. A delivery starts a job only when all of them
+  // match. No condition: each delivery starts a job. FireTriggerNow does not read them.
+  repeated WebhookCondition conditions = 2;
+}
+
+// A condition on a delivery of a webhook.
+message WebhookCondition {
+  // The value of the delivery that the condition reads. Required.
+  oneof source {
+    // The name of a header, for example X-GitHub-Event. Upper and lower case are the same. A
+    // delivery with no such header does not match.
+    string header = 1;
+    // A JSON pointer into the body, for example /ref. It starts with /. A text gives the text, null
+    // an empty text, and another value its JSON. A body that is not JSON, or no value at the
+    // pointer, does not match.
+    string json_pointer = 2;
+  }
+  // How the value compares with the values of the condition. Required.
+  ConditionOperator operator = 3;
+  // The values, each one not empty and at most 1024 characters: one value for
+  // CONDITION_OPERATOR_IS and CONDITION_OPERATOR_MATCHES, 1 to 32 unique values for
+  // CONDITION_OPERATOR_ONE_OF.
+  repeated string values = 4;
+}
+
+// How a condition of a webhook compares the value of a delivery.
+enum ConditionOperator {
+  // Not used.
+  CONDITION_OPERATOR_UNSPECIFIED = 0;
+  // The value is equal to the value of the condition. Upper and lower case are different.
+  CONDITION_OPERATOR_IS = 1;
+  // The value matches the glob of the condition, as the globs of the branches: * stops at a /, **
+  // does not, and \ escapes the next character.
+  CONDITION_OPERATOR_MATCHES = 2;
+  // The value is equal to one of the values of the condition.
+  CONDITION_OPERATOR_ONE_OF = 3;
+}
+
+// The rules of a push trigger. A push to a matching branch starts one job for each pipeline and
+// each new head commit. One commit has one job: a pull request on the same commit uses it. In a
+// project of files, a push or a pull request also starts a failed job for each file with errors.
+message Push {
+  // The globs of the branches, for example main or release/*. Empty gives each branch.
+  repeated string branches = 1;
+  // The globs of the branches to skip. They win over branches.
+  repeated string exclude_branches = 2;
+  // True skips a push whose head commit has [skip ci] or [ci skip] in its message, in any case.
+  // In a pipeline file, the default is true.
+  bool skip_ci = 3;
+}
+
+// The rules of a pull request trigger: a pull request on GitHub, a merge request on GitLab. A
+// pull request from a fork waits for an approval, and its job never gets a secret value.
+message PullRequest {
+  // The globs of the target branches. Empty gives each branch.
+  repeated string branches = 1;
+  // The events that start a job. Empty gives each event.
+  repeated PullRequestEvent events = 2;
+  // True also starts a job for a draft pull request.
+  bool drafts = 3;
+}
+
+// An event of a pull request.
+enum PullRequestEvent {
+  // Not used.
+  PULL_REQUEST_EVENT_UNSPECIFIED = 0;
+  // The pull request was opened.
+  PULL_REQUEST_EVENT_OPENED = 1;
+  // The pull request got new commits.
+  PULL_REQUEST_EVENT_SYNCHRONIZED = 2;
+  // The pull request was opened again.
+  PULL_REQUEST_EVENT_REOPENED = 3;
+  // A draft pull request became ready for review.
+  PULL_REQUEST_EVENT_READY_FOR_REVIEW = 4;
+}
+
+// The rules of a tag trigger.
+message Tag {
+  // The globs of the tags, for example v*. Empty gives each tag.
+  repeated string patterns = 1;
+}
+
+// An input of a trigger.
+message TriggerInput {
+  // The name of the variable.
+  string name = 1;
+  // The value. Required.
+  oneof value {
+    // A text.
+    string literal = 2;
+    // A JSON pointer into the body of a webhook, for example /after. A missing value gives 422.
+    // A fire with no body gives an empty text.
+    string json_pointer = 3;
+  }
+}
+
+// The result of a fire of a trigger.
+enum FireStatus {
+  // No fire yet.
+  FIRE_STATUS_UNSPECIFIED = 0;
+  // The fire made a job.
+  FIRE_STATUS_OK = 1;
+  // The fire ran but made no job ("fire failed"). The error tells why.
+  FIRE_STATUS_ERROR = 2;
+  // The server was down at the cron time, so the time did not fire ("time missed"). Only a
+  // TriggerFire has this status.
+  FIRE_STATUS_MISSED = 3;
+  // A delivery of a webhook did not match its conditions, so the fire made no job ("skipped").
+  // The error tells which condition did not match. It is not a failure.
+  FIRE_STATUS_SKIPPED = 4;
+}
+
+// The kind of a trigger: what starts its jobs.
+enum TriggerKind {
+  // Not used.
+  TRIGGER_KIND_UNSPECIFIED = 0;
+  // A schedule.
+  TRIGGER_KIND_CRON = 1;
+  // A webhook.
+  TRIGGER_KIND_WEBHOOK = 2;
+  // A push to a branch of the linked repository.
+  TRIGGER_KIND_PUSH = 3;
+  // A pull request of the linked repository.
+  TRIGGER_KIND_PULL_REQUEST = 4;
+  // A push of a tag of the linked repository.
+  TRIGGER_KIND_TAG = 5;
+}

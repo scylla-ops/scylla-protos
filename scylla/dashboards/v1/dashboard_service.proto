@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package scylla.dashboards.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/common/v1/page.proto";
+import "scylla/dashboards/v1/attention.proto";
+import "scylla/dashboards/v1/dashboard.proto";
+
+// Creates, reads, changes, lists and deletes the saved layouts of the dashboard of a workspace,
+// and sets its team default. Each RPC needs an authenticated actor, else UNAUTHENTICATED. An
+// unknown dashboard gives PERMISSION_DENIED, as a refusal does. A private dashboard of another
+// actor gives the same answer, also to an owner of the workspace and to an instance admin.
+service DashboardService {
+  // Lists the dashboards of a workspace, oldest first: the shared dashboards, and the private
+  // dashboards of the caller. The route permission is list_dashboards: for example the roles
+  // owner, admin, member and viewer of the workspace.
+  rpc ListDashboards(ListDashboardsRequest) returns (ListDashboardsResponse);
+  // Reads one dashboard with its widgets. The creator of the dashboard always reads it. Another
+  // caller needs the route permission get_dashboard on the workspace of the dashboard: for
+  // example the roles owner, admin, member and viewer.
+  rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse);
+  // Creates a dashboard in a workspace, with the caller as its creator. The route permission is
+  // create_dashboard: for example the roles owner, admin and member. A bad name, a bad visibility,
+  // or widgets with a schema version out of 1 to 65535, a text that is not JSON or a text above
+  // 64 KiB give INVALID_ARGUMENT.
+  rpc CreateDashboard(CreateDashboardRequest) returns (CreateDashboardResponse);
+  // Changes the name, the visibility or the widgets of a dashboard. The creator of the dashboard
+  // always changes it. Another caller needs the route permission update_dashboard on the
+  // workspace of the dashboard: for example the roles owner and admin. The request carries the
+  // version that the client read: another version gives ABORTED, and the client reads the
+  // dashboard again. A dashboard that becomes private stops being the team default. The bad
+  // values of CreateDashboard give INVALID_ARGUMENT.
+  rpc UpdateDashboard(UpdateDashboardRequest) returns (UpdateDashboardResponse);
+  // Deletes a dashboard. The creator of the dashboard always deletes it. Another caller needs
+  // the route permission delete_dashboard on the workspace of the dashboard: for example the
+  // roles owner and admin.
+  rpc DeleteDashboard(DeleteDashboardRequest) returns (DeleteDashboardResponse);
+  // Sets the team default dashboard of a workspace, or removes it. The route permission is
+  // set_team_default_dashboard: for example the roles owner and admin. The previous team default
+  // stops being the default. An id that is not a shared dashboard of the workspace, for example
+  // a private dashboard, gives NOT_FOUND.
+  rpc SetTeamDefaultDashboard(SetTeamDefaultDashboardRequest) returns (SetTeamDefaultDashboardResponse);
+  // Lists the open items of a workspace that need a person ("Needs you"), newest first, with
+  // their counts. Each caller lists the items that it can read, so the route permission
+  // list_attention_items is on the caller itself, and a filter never causes a refusal. A kind
+  // that the caller cannot read is not in the answer: the jobs that failed or lost their agent
+  // need list_workspace_jobs on their project or on the workspace (for example the role viewer),
+  // the fires need list_trigger_fires, the agents need list_apps on the workspace, and the jobs
+  // that wait for an approval need approve_job (for example the roles editor and member). A failed
+  // or orphaned job and a fire stay items for at most 30 days, and an archived pipeline has none
+  // of them. A bad id, more than 100 project ids, an unknown kind or a bad page token give
+  // INVALID_ARGUMENT.
+  rpc ListAttentionItems(ListAttentionItemsRequest) returns (ListAttentionItemsResponse);
+}
+
+// The input of ListDashboards.
+message ListDashboardsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The page.
+  scylla.common.v1.PageRequest page = 2;
+}
+
+// The output of ListDashboards.
+message ListDashboardsResponse {
+  // The dashboards of the page, oldest first, with no widgets.
+  repeated Dashboard dashboards = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of GetDashboard.
+message GetDashboardRequest {
+  // The dashboard. Required.
+  scylla.common.v1.Id dashboard_id = 1;
+}
+
+// The output of GetDashboard.
+message GetDashboardResponse {
+  // The dashboard.
+  Dashboard dashboard = 1;
+  // The widgets of the dashboard.
+  DashboardWidgets widgets = 2;
+}
+
+// The input of CreateDashboard.
+message CreateDashboardRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The display name: 1 to 100 characters after trim, on one line.
+  string name = 2;
+  // Who sees the dashboard. Not set: private.
+  DashboardVisibility visibility = 3;
+  // The widgets. Required.
+  DashboardWidgets widgets = 4;
+}
+
+// The output of CreateDashboard.
+message CreateDashboardResponse {
+  // The created dashboard, with the version 1.
+  Dashboard dashboard = 1;
+}
+
+// The input of UpdateDashboard. A field that is not set does not change.
+message UpdateDashboardRequest {
+  // The dashboard. Required.
+  scylla.common.v1.Id dashboard_id = 1;
+  // The version that the client read. Required.
+  int64 version = 2;
+  // The new display name: 1 to 100 characters after trim, on one line.
+  optional string name = 3;
+  // The new visibility.
+  DashboardVisibility visibility = 4;
+  // The new widgets. They replace all the widgets.
+  DashboardWidgets widgets = 5;
+}
+
+// The output of UpdateDashboard.
+message UpdateDashboardResponse {
+  // The changed dashboard, with its new version.
+  Dashboard dashboard = 1;
+}
+
+// The input of DeleteDashboard.
+message DeleteDashboardRequest {
+  // The dashboard. Required.
+  scylla.common.v1.Id dashboard_id = 1;
+}
+
+// The output of DeleteDashboard.
+message DeleteDashboardResponse {}
+
+// The input of SetTeamDefaultDashboard.
+message SetTeamDefaultDashboardRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The shared dashboard that becomes the team default. Not set: the workspace has no team
+  // default.
+  scylla.common.v1.Id dashboard_id = 2;
+}
+
+// The output of SetTeamDefaultDashboard.
+message SetTeamDefaultDashboardResponse {
+  // The team default dashboard. Not set when the request removes the team default.
+  Dashboard dashboard = 1;
+}
+
+// The input of ListAttentionItems.
+message ListAttentionItemsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // Only the items of these projects, at most 100. Empty: each project. An agent is in no
+  // project, so a filter of projects gives no agent.
+  repeated scylla.common.v1.Id project_ids = 2;
+  // Only the items of these kinds. Empty: each kind.
+  repeated AttentionKind kinds = 3;
+  // The last visit of the caller: the items after it are new. Not set: no item is new.
+  google.protobuf.Timestamp since = 4;
+  // The page.
+  scylla.common.v1.PageRequest page = 5;
+}
+
+// The output of ListAttentionItems.
+message ListAttentionItemsResponse {
+  // The items of the page, newest first.
+  repeated AttentionItem items = 1;
+  // The open items of each kind that the request asks and that the caller can read, in the order
+  // of AttentionKind, for all the pages. A kind with no open item has the count 0.
+  repeated AttentionCount counts = 2;
+  // The open items of all the kinds in counts.
+  uint32 open_count = 3;
+  // The open items of all the kinds in counts after the since time of the request.
+  uint32 new_count = 4;
+  // The last time when an open item of a job or of a fire went away, in the last 30 days. Not set
+  // when none did. An agent that connects again is not in it.
+  google.protobuf.Timestamp last_cleared_at = 5;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 6;
+}

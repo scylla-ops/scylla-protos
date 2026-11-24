@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package scylla.dashboards.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// A saved layout of the dashboard of a workspace, with no widgets.
+message Dashboard {
+  // The id of the dashboard.
+  scylla.common.v1.Id id = 1;
+  // The workspace of the dashboard.
+  scylla.common.v1.Id workspace_id = 2;
+  // The actor that created the dashboard. It always reads, changes and deletes it.
+  scylla.common.v1.Id created_by = 3;
+  // The display name.
+  string name = 4;
+  // Who sees the dashboard.
+  DashboardVisibility visibility = 5;
+  // True for the team default of the workspace: at most one shared dashboard of a workspace.
+  bool team_default = 6;
+  // The version: 1 at the creation, and one more at each change. UpdateDashboard needs it.
+  int64 version = 7;
+  // The creation time.
+  google.protobuf.Timestamp created_at = 8;
+  // The time of the last change.
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// The widgets of a dashboard: a JSON text that the web app writes and reads. The server keeps it
+// and does not read it. A widget that names a project or a pipeline that the reader cannot see
+// gets no data from the data routes.
+message DashboardWidgets {
+  // The version of the format of widgets_json, that the web app sets: 1 to 65535.
+  uint32 schema_version = 1;
+  // The widgets, as a JSON text of at most 64 KiB.
+  string widgets_json = 2;
+}
+
+// Who sees a dashboard.
+enum DashboardVisibility {
+  // Not set: a new dashboard is private, and a change keeps the visibility.
+  DASHBOARD_VISIBILITY_UNSPECIFIED = 0;
+  // Only its creator sees the dashboard, also when the caller is an owner of the workspace or an
+  // instance admin.
+  DASHBOARD_VISIBILITY_PRIVATE = 1;
+  // Each actor with get_dashboard on the workspace sees the dashboard.
+  DASHBOARD_VISIBILITY_WORKSPACE = 2;
+}

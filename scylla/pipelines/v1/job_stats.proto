@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package scylla.pipelines.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/pipelines/v1/job.proto";
+
+// The number of jobs for each end.
+message JobOutcomes {
+  // The jobs that completed.
+  uint32 completed = 1;
+  // The jobs that failed.
+  uint32 failed = 2;
+  // The jobs that a user cancelled.
+  uint32 cancelled = 3;
+  // The jobs that ended because their agent went away or was disabled.
+  uint32 orphaned = 4;
+}
+
+// The figures of a set of jobs. The success rate is completed / (completed + failed + orphaned):
+// the client computes it, and a cancelled job does not count.
+message JobFigures {
+  // Each job of the set, also the jobs that did not end.
+  uint32 created = 1;
+  // The jobs that ended, by their end.
+  JobOutcomes outcomes = 2;
+  // The median time from the start to the end of the jobs that started and ended. Not set when
+  // no job did.
+  google.protobuf.Duration p50_duration = 3;
+  // The 95th percentile of the same times. Not set when no job did.
+  google.protobuf.Duration p95_duration = 4;
+  // The median wait for an agent of the jobs that started: from the creation, or from the
+  // approval of a job from a fork, to the start. Not set when no job started.
+  google.protobuf.Duration p50_queue = 5;
+  // The 95th percentile of the same waits. Not set when no job started.
+  google.protobuf.Duration p95_queue = 6;
+  // The sum of the times from the start to the end of the jobs that started and ended: the run
+  // minutes. 0 when no job did.
+  google.protobuf.Duration run_time = 7;
+}
+
+// The jobs of one hour, day or week of the period.
+message JobBucket {
+  // The start of the hour, day or week in the time zone of the workspace. The first bucket can
+  // start before from: it counts the jobs from from.
+  google.protobuf.Timestamp start = 1;
+  // The jobs created in the bucket.
+  JobFigures figures = 2;
+}
+
+// The jobs of one project, pipeline, agent or origin.
+message JobGroup {
+  // The key of the group.
+  oneof key {
+    // The project, the pipeline or the agent.
+    scylla.common.v1.Id id = 1;
+    // The origin.
+    JobOrigin origin = 2;
+  }
+  // The jobs of the group in the period.
+  JobFigures figures = 3;
+  // The jobs of the group in the previous period. Set when compare is true.
+  JobFigures previous = 4;
+}
+
+// The size of the buckets of the job stats.
+enum JobStatsBucket {
+  // No bucket.
+  JOB_STATS_BUCKET_UNSPECIFIED = 0;
+  // One bucket for each hour.
+  JOB_STATS_BUCKET_HOUR = 1;
+  // One bucket for each day, from 00:00.
+  JOB_STATS_BUCKET_DAY = 2;
+  // One bucket for each week, from Monday 00:00.
+  JOB_STATS_BUCKET_WEEK = 3;
+}
+
+// What makes the groups of the job stats.
+enum JobStatsGroup {
+  // No group.
+  JOB_STATS_GROUP_UNSPECIFIED = 0;
+  // One group for each project.
+  JOB_STATS_GROUP_PROJECT = 1;
+  // One group for each pipeline.
+  JOB_STATS_GROUP_PIPELINE = 2;
+  // One group for each agent. A job that got no agent is in no group.
+  JOB_STATS_GROUP_AGENT = 3;
+  // One group for each origin.
+  JOB_STATS_GROUP_ORIGIN = 4;
+}
+
+// The order of the groups of the job stats: the largest value first, then the key.
+enum JobStatsOrder {
+  // JOB_STATS_ORDER_COUNT.
+  JOB_STATS_ORDER_UNSPECIFIED = 0;
+  // The most jobs.
+  JOB_STATS_ORDER_COUNT = 1;
+  // The most jobs that failed or were orphaned.
+  JOB_STATS_ORDER_FAILED = 2;
+  // The longest median duration. A group with no median comes last.
+  JOB_STATS_ORDER_P50_DURATION = 3;
+  // The longest run time.
+  JOB_STATS_ORDER_RUN_TIME = 4;
+}

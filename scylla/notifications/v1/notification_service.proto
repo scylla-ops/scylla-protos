@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package scylla.notifications.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+import "scylla/common/v1/page.proto";
+
+// The inbox of the caller. Each RPC acts on the caller only, and takes no recipient. The caller
+// must be a user, with no API token, else PERMISSION_DENIED. Each RPC needs an authenticated
+// actor, else UNAUTHENTICATED.
+service NotificationService {
+  // Returns the counts of the inbox, for the badge. The route reads Postgres only, so it can
+  // count a row that ListNotifications hides. Call it again after poll_after_seconds.
+  rpc GetNotificationSummary(GetNotificationSummaryRequest) returns (GetNotificationSummaryResponse);
+  // Lists the notifications of the caller: the rows that need an action first, then the newest.
+  // A row about an object that the caller can no longer open is not in the answer. A clear
+  // refusal also deletes the row.
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  // Marks notifications as read or as unread. A row that needs an action stays unread. An id
+  // that is not a notification of the caller gives NOT_FOUND, and nothing changes.
+  rpc MarkNotificationsRead(MarkNotificationsReadRequest) returns (MarkNotificationsReadResponse);
+  // Marks each notification of the caller as read, except the rows that need an action.
+  rpc MarkAllNotificationsRead(MarkAllNotificationsReadRequest) returns (MarkAllNotificationsReadResponse);
+  // Marks notifications as done, or puts them back in the inbox. An id that is not a
+  // notification of the caller gives NOT_FOUND, and nothing changes.
+  rpc SetNotificationsDone(SetNotificationsDoneRequest) returns (SetNotificationsDoneResponse);
+}
+
+// One notification of the caller. The row holds a kind and its parameters, never a sentence: the
+// client makes the text in the language of the reader.
+message Notification {
+  // The id of the notification.
+  scylla.common.v1.Id id = 1;
+  // The kind, as <subject>.<action>. The list of the kinds is open: a client that does not know a
+  // kind shows a generic line.
+  string kind = 2;
+  // The category of the kind.
+  string category = 3;
+  // Why the caller gets the row: subject, inviter, owner or admin. The value subject means that
+  // the row is about the caller.
+  string reason = 4;
+  // The display name of the actor. Empty if there is no actor or the user no longer exists.
+  string actor_name = 5;
+  // The workspace, if the fact is in one.
+  scylla.common.v1.Id workspace_id = 6;
+  // The slug of the workspace, for a link. Empty if the fact is in no workspace.
+  string workspace_slug = 7;
+  // The name of the workspace. Empty if the fact is in no workspace.
+  string workspace_name = 8;
+  // The project, if the fact is in one.
+  scylla.common.v1.Id project_id = 9;
+  // The name of the project. Empty if the fact is in no project.
+  string project_name = 10;
+  // The parameters of the kind.
+  map<string, string> params = 11;
+  // The number of facts in this row.
+  int32 occurrences = 12;
+  // True if the row waits for an action of the caller.
+  bool needs_action = 13;
+  // The time of the first fact.
+  google.protobuf.Timestamp first_at = 14;
+  // The time of the last fact.
+  google.protobuf.Timestamp last_at = 15;
+  // The time at which the caller read the row. Not set means unread.
+  google.protobuf.Timestamp read_at = 16;
+  // The time at which the caller marked the row as done. Not set means in the inbox.
+  google.protobuf.Timestamp done_at = 17;
+  // The invitation of the row, as it is now. Not set if the row has no invitation.
+  NotificationInvitation invitation = 18;
+}
+
+// The invitation of a notification, read at the time of the list.
+message NotificationInvitation {
+  // The id of the invitation, for AcceptInvitation and DeclineInvitation.
+  scylla.common.v1.Id id = 1;
+  // The role that the invitation gives.
+  string role = 2;
+
+  // The state of the invitation. Exactly one is set.
+  oneof state {
+    // The invitation waits for an answer.
+    Open open = 10;
+    // A user accepted the invitation.
+    Accepted accepted = 11;
+    // The invitation ended with no answer.
+    Expired expired = 12;
+  }
+
+  // An invitation that waits for an answer.
+  message Open {
+    // The end of the validity of the invitation.
+    google.protobuf.Timestamp expires_at = 1;
+  }
+
+  // An invitation that a user accepted.
+  message Accepted {
+    // The time of the acceptance.
+    google.protobuf.Timestamp accepted_at = 1;
+  }
+
+  // An invitation that ended with no answer.
+  message Expired {
+    // The end of the validity of the invitation.
+    google.protobuf.Timestamp expired_at = 1;
+  }
+}
+
+// The input of GetNotificationSummary.
+message GetNotificationSummaryRequest {}
+
+// The output of GetNotificationSummary.
+message GetNotificationSummaryResponse {
+  // The number of unread rows in the inbox. The count stops at 100.
+  int32 unread_count = 1;
+  // The number of rows in the inbox that need an action.
+  int32 needs_action_count = 2;
+  // The time to wait before the next call of this route.
+  int32 poll_after_seconds = 3;
+}
+
+// The input of ListNotifications.
+message ListNotificationsRequest {
+  // The page to return.
+  scylla.common.v1.PageRequest page = 1;
+  // True lists the done rows. False lists the inbox.
+  bool done = 2;
+  // True lists only the unread rows.
+  bool unread_only = 3;
+  // True lists only the rows that need an action.
+  bool needs_action_only = 4;
+  // Lists only the rows of this workspace, if set.
+  scylla.common.v1.Id workspace_id = 5;
+  // Lists only the rows of this category, if not empty.
+  string category = 6;
+}
+
+// The output of ListNotifications.
+message ListNotificationsResponse {
+  // The notifications of the page.
+  repeated Notification notifications = 1;
+  // The token of the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of MarkNotificationsRead.
+message MarkNotificationsReadRequest {
+  // The notifications, at most 100.
+  repeated scylla.common.v1.Id notification_ids = 1;
+  // True marks the rows as read. False marks them as unread.
+  bool read = 2;
+}
+
+// The output of MarkNotificationsRead.
+message MarkNotificationsReadResponse {}
+
+// The input of MarkAllNotificationsRead.
+message MarkAllNotificationsReadRequest {}
+
+// The output of MarkAllNotificationsRead.
+message MarkAllNotificationsReadResponse {}
+
+// The input of SetNotificationsDone.
+message SetNotificationsDoneRequest {
+  // The notifications, at most 100.
+  repeated scylla.common.v1.Id notification_ids = 1;
+  // True marks the rows as done. False puts them back in the inbox.
+  bool done = 2;
+}
+
+// The output of SetNotificationsDone.
+message SetNotificationsDoneResponse {}
