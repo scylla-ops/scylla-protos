@@ -7,153 +7,69 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 
 ## [Unreleased]
 
-### Changed
+## [0.7.0] - 2026-11-24
 
-- **Breaking:** the API of the new backend replaces the API of the old server. It keeps no
-  compatibility, so the check of breaking changes is removed from the repository.
-- Ids are opaque, in one message (`scylla.common.v1.Id`), and lists use keyset pages.
-- `StartGitHubInstall` gives the authorize page of the GitHub App. After this page,
-  `CompleteGitHubInstall` gives the installations that the user can connect (`choice`), or the
-  connection.
+The API of the new backend. It replaces the API of the 0.6 server, with no compatibility.
 
 ### Added
 
-The services: `AccessService`, `AccountService`, `AgentService`, `AppService`, `CapabilityService`,
-`InvitationService`, `JobService`, `NotificationService`, `PersonalTokenService`, `PipelineService`,
-`ProfileService`, `ProjectService`, `RoleService`, `SecretService`, `SettingsService`, `TokenService`,
-`TriggerService`, `UserAdminService`, `UserStateService` and `WorkspaceService`.
-
-`GetCapabilities` gives `version` and `agent_image`, for the commands that install an agent.
-
-**Access and accounts**
-
-- `AccountService`: accounts, sessions, and a sign-in that waits for a person. A sign-in that waits
-  keeps only the link with a password.
-- Handles, instance admins, and a console of the users.
-- Personal tokens, with a switch on the instance and a switch on each workspace.
-- Permission checks, the list of the access to an object, and the error details for the clients.
-- `UserStateService`: the state of the web app for the caller, as small JSON values with a version.
-
-**Workspaces and roles**
-
-- Workspaces with slugs and owners, and the management of the invitations.
-- `RoleService`: custom roles, the roles of the instance, the provider of a role, and a required
-  provider.
-- `UpdateRole` takes an optional level. The level changes only while the role has no holder.
-- The owner of a workspace is a role of `AccessService`. `AddOwner`, `RemoveOwner` and `ListOwners`
-  are gone from `WorkspaceService`.
-- The members, the effective access of a member, and the holders of a role.
-- The limit of the workspaces in the settings of the instance.
-
-**Notifications**
-
-- `NotificationService`: the inbox of the caller, with a count, a list, read, unread, done and mark
-  all as read.
-- `AcceptInvitation` takes the token of the link or the id of the invitation. `DeclineInvitation`
-  declines an invitation with its id, and tells the person that sent it.
-
-**Projects and pipelines**
-
-- The change of a project, and the encrypted secrets of a project.
-- Pipelines, jobs and their run on the agents.
+- The common messages: an id is opaque, in one message (`scylla.common.v1.Id`), and a list uses
+  keyset pages (`PageRequest`, `PageResponse`).
+- Accounts and access: `AccountService` (accounts, sessions, and a sign-in that waits for a
+  person), `TokenService`, `ProfileService`, `PersonalTokenService` (with a switch on the instance
+  and on each workspace), `UserAdminService` (the instance admins and a console of the users) and
+  `UserStateService` (the state of the web app for the caller, as small JSON values with a
+  version). `AccessService` gives and lists the roles of an object, checks the permissions of the
+  caller (`CheckPermissions`), and gives error details to the clients.
+- Workspaces and roles: `WorkspaceService` (slugs, the IANA time zone of a workspace, and the limit
+  of the workspaces of the instance), `InvitationService` and `RoleService` (custom roles, the roles
+  of the instance, and a level that changes only while the role has no holder). The owners of a
+  workspace hold the built-in role Workspace owner of `AccessService`. The members, the effective
+  access of a member and the holders of a role, with `runner` for an app that runs jobs.
+- Notifications and activity: `NotificationService` (the inbox of the caller, with a count, read,
+  unread, done and mark all as read), `AcceptInvitation` and `DeclineInvitation`, and
+  `ActivityService.ListActivity` (the activity feed of a workspace).
+- Projects: `ProjectService`, and `SecretService` for the encrypted secrets of a project.
+- Pipelines and jobs: `PipelineService` and `JobService`, the places of the nodes on the canvas
+  (`SavePipelineLayout`, `layout`), the origin of a job (`JobOrigin`), the job filters, the
+  summaries of the pipelines for the dashboard (`ListPipelineSummaries`), and the figures of the
+  jobs of a workspace (`GetJobStats`).
 - Conditional nodes: a `Need` has a node and a port, a `Switch` opens the ports of its cases, a
-  `Merge` joins branches, and the port `error` of a run node takes its failure. `NodeRun.ports`
-  and `JobEvent.ports` give the ports that a switch opened. In `agents/v1` the change is additive:
-  `DispatchNode.needs` keeps the node ids for an agent of v0.7.0-rc.1, `DispatchNode.links` has
-  the needs with their ports, and `Hello.conditional_nodes` tells that an agent runs them.
-  `ExportPipeline` refuses a pipeline with conditional nodes (`CONDITIONAL_NODES`).
-- The places of the nodes on the canvas: `SavePipelineLayout`, and a `layout` field in `GetPipeline`,
-  `CreatePipeline` and `UpdatePipeline`.
-- Cron and webhook triggers.
+  `Merge` joins branches, and the port `error` of a run node takes its failure. `NodeRun.ports` and
+  `JobEvent.ports` give the ports that a switch opened. In `agents/v1` the change is additive:
+  `DispatchNode.links` has the needs with their ports, and `Hello.conditional_nodes` tells that an
+  agent runs them. `ExportPipeline` refuses a pipeline with conditional nodes (`CONDITIONAL_NODES`).
+- The library of a workspace: `FragmentService` keeps fragments (groups of nodes that the pipelines
+  of a workspace share), their versions that never change, and the favorites of each reader. A
+  pipeline links the version of a fragment (`Pipeline.fragment_links`), and a fragment can come
+  from a package of a registry (`FragmentOrigin`).
+- Triggers: `TriggerService` has cron and webhook triggers, the conditions of a webhook, the push,
+  pull request and tag triggers, and the history of the fires (`ListWorkspaceTriggers`,
+  `ListTriggerFires`, `GetTriggerFireStats`), with the missed and the skipped fires.
+- Apps and agents: `AppService` (apps with join codes and named keys, a disable and an enable, API
+  tokens with limits, and CI identities) and `AgentService` (the stream of the agents, their job
+  stats for a period, `GetSlotUsage` and `GetAgentMetrics`). An agent sends its protocol, its build
+  and `Metrics`. `App.compatibility` and `App.missing_features` tell how an agent fits the server,
+  and `Job.unfit_agents` names the online agents that cannot get the code of a waiting job.
+  `CapabilityService.GetCapabilities` gives the version of the server, its agent protocols and the
+  image of the agent.
+- The GitHub and GitLab integration: `VcsAppService`, and `VcsConnectionService`,
+  `RepositoryService`, `MergeBlockService` and `VcsReportService` of `scylla.integrations.v1`. They
+  have the connections, the repository links, the pipeline files, the source, the approval and the
+  checkout of a job, the reports, the merge blocks and the counts of the webhook deliveries
+  (`GetDeliveryStats`).
+- The dashboard: `DashboardService` keeps the saved layouts of a workspace and its team default, and
+  `ListAttentionItems` gives the open items that need a person ("Needs you").
+- Legal and privacy: `LegalService` (the operator, the privacy contact and the legal documents, with
+  what changes in a version), `ProfileService.ExportAccountData`, the acceptance of the terms of
+  service (`AcceptTerms`, `GetMe.terms_acceptance_required`, `TERMS_NOT_ACCEPTED`), and
+  `ConsentService.RecordConsent` for a choice about cookies.
+- `SettingsService`: the settings of the instance.
 
-**Apps and agents**
+### Changed
 
-- Apps with join codes and keys, and the stream of the agents.
-- A disable and an enable of an App. Keys have names, and record their last use.
-- The API tokens of the Apps and their limits, and the CI identities.
-- The number of jobs that each agent holds, and its job stats.
-- `GetAgentStatsRequest` takes an optional period (`from`, `to`). With no period, the stats stay the
-  last 30 days.
-- `Member` and `RoleHolderEntry` have `runner`. It is true for an app that runs jobs (an agent), so
-  a client can tell an agent from another app.
-- The contract of the GitHub and GitLab integration: the services of `scylla.integrations.v1` and
-  `VcsAppService`, the source, the approval and the checkout of a job, the pipeline files, the push,
-  pull request and tag triggers, and the checkout in a dispatch.
-- `ListConnectionRepositoriesRequest` has an optional `workspace_id`. It replaces `project_id` to
-  list the repositories of a connection for a project that does not exist yet.
-- `Host.protocol` and `Host.build`: the agent protocol and the build commit of an agent. `Welcome`
-  and `GetCapabilities` give the agent protocols of the server (`AgentProtocolRange`).
-  `App.compatibility` and `App.missing_features` tell how an agent fits the server.
-  `Job.unfit_agents` names the online agents that cannot get the code of a waiting job, and why.
-- `Workspace.time_zone`: the IANA time zone of a workspace, `UTC` for a new workspace.
-  `UpdateWorkspace` changes it with `time_zone`, and a name that is not an IANA name gives
-  `INVALID_ARGUMENT` on `time_zone`.
-- `PipelineService.ListPipelineSummaries` gives the dashboard the pipelines of a workspace that the
-  caller can see, with their recent jobs, their health and their triggers. New messages
-  `PipelineSummary`, `RecentJob` and `NextFire`, and new enums `PipelineSummaryOrder` and
-  `TriggerKind`.
-- `Job.origin` (`JobOrigin`) tells what started a job. `JobFilter` filters on the states, the
-  origins and a range of the time of creation. `ListWorkspaceJobs` filters on projects and
-  pipelines, and the view `JOB_VIEW_SUMMARY` gives the jobs with no nodes. `NodeRun.max_attempts`
-  gives the most attempts of a node, and `waiting_reason` can be `NO_AGENT_WITH_CONTAINER`.
-- `JobService.GetJobStats` gives the dashboard the figures of the jobs of a workspace that the
-  caller can see for a period: the counts by end, the durations, the waits for an agent and the run
-  time, with buckets of hours, days or weeks in the time zone of the workspace, groups by project,
-  pipeline, agent or origin, and the previous period. New messages `JobFigures`, `JobBucket` and
-  `JobGroup`, and new enums `JobStatsBucket`, `JobStatsGroup` and `JobStatsOrder`. `JobOutcomes`
-  moves from `scylla.agents.v1` to `scylla.pipelines.v1`, with the same fields.
-- `DashboardService` keeps the saved layouts of the dashboard of a workspace: list, get, create,
-  change at the version that the client read, delete, and the team default of the workspace.
-- `AgentService.GetSlotUsage` gives the busy job slots of the agents of a workspace and the slots of
-  the connected agents. `GetAgentMetrics` gives the CPU use and the used memory of the machine of an
-  agent, in buckets. The agent sends `Metrics` at the interval of
-  `Welcome.metrics_interval_seconds`. `Host.started_at` tells the start of the agent, and
-  `App.last_sample` gives its last sample.
-- `TriggerService` has `ListWorkspaceTriggers`, `ListTriggerFires` and `GetTriggerFireStats`: the
-  triggers of a workspace with their next fires, the history of their fires and of the missed cron
-  times, and their counts. `FireStatus` has `FIRE_STATUS_MISSED`. A cron schedule uses the time zone
-  of the workspace.
-- `VcsConnectionService` has `GetDeliveryStats`: the counts of the webhook deliveries of a workspace
-  for a period, for each connection with its newest delivery, for each webhook trigger, and by hour,
-  day or week in the time zone of the workspace.
-- `DashboardService.ListAttentionItems` gives the open items of a workspace that need a person
-  ("Needs you"), newest first, with the counts of each kind and the items that are new since the
-  last visit. New messages `AttentionItem`, `AttentionJob`, `AttentionNode`, `AttentionFire`,
-  `AttentionAgent` and `AttentionCount`, and the new enum `AttentionKind`.
-- `ActivityService.ListActivity` gives the activity feed of a workspace: the end of each job and
-  each change of the triggers, the secrets, the members, the Git connections and the agents, newest
-  first, with pages and the count of the rows since a time. A row shows only to a caller that can
-  read its area.
-- `ProfileService.ExportAccountData` gives a copy of the data of the account as one JSON document,
-  with no secret. A personal token with the read-only preset cannot call it.
-- `LegalService`: the legal settings of the instance (the operator, the privacy contact and the
-  legal documents). `GetLegalInfo` needs no token. `UpdateLegalSettings` is for the instance admins.
-- `ProfileService.AcceptTerms` keeps the acceptance of the current version of the terms of service.
-  `GetMe` tells if the user must accept a new version (`terms_acceptance_required`) and gives the
-  last version that the user accepted. `SignUp` takes `accepted_terms_version`, and gives
-  `TERMS_NOT_ACCEPTED` when the terms need an acceptance and the request does not accept their
-  current version.
-- `ConsentService.RecordConsent` keeps a record of a choice about cookies: the version and the
-  SHA-256 of the text that the person saw, the choice for each purpose, the action and the source. A
-  withdrawal is a new record.
-- `LegalDocument.changes`: what changes in a version of a legal document, a plain text of at most
-  2000 characters with one change on each line. `UpdateLegalSettings` sets it and `GetLegalInfo`
-  gives it.
-- `Webhook` has `conditions`: each condition reads a header or a JSON pointer into the body, and
-  compares it with `CONDITION_OPERATOR_IS`, `CONDITION_OPERATOR_MATCHES` or
-  `CONDITION_OPERATOR_ONE_OF`. `FireStatus` has `FIRE_STATUS_SKIPPED`, `TriggerFireFigures` has
-  `skipped`, and `UpdateTriggerRequest.rules` has `webhook`.
+- **Breaking:** the API of the new backend replaces the API of the 0.6 server. It keeps no
+  compatibility, so the check of breaking changes is removed from the repository.
 
-### Removed
-
-- **Breaking:** `RepositoryLink.report_mode` and `UpdateRepositoryLinkRequest.report_mode` are
-  removed. The provider sets the mode of a report: a check run on GitHub, a commit status on GitLab.
-
-### Fixed
-
-- An invitation keeps the rule of the escalation: the text of the API now says so.
-- A role of the instance is not in the people of a workspace or of a project: `ListMembers` and
-  `GetMemberAccess` now say so. The wire format did not change.
-- The comments of the Git integration RPCs and messages give the error codes, the states and the
-  reasons that the server gives, for example on RunPipeline, RerunJob, CreateTrigger and
-  RepositoryLink.state_reason.
+[Unreleased]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/scylla-ops/scylla-protos/releases/tag/v0.7.0
