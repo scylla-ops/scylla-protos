@@ -52,6 +52,18 @@ message Pipeline {
   uint32 file_error_count = 16;
   // The blocks of the pipeline that link a version of a fragment of the library.
   repeated FragmentLink fragment_links = 17;
+  // What the agent of a job of the pipeline must have. Always set: no labels gives each job to
+  // any agent of the project.
+  AgentSettings agent = 18;
+}
+
+// What the agent of a job of a pipeline must have.
+message AgentSettings {
+  // The labels that the agent must have, each of them, at most 16. A label has 1 to 32
+  // characters: lower case letters, digits, dots, dashes and underscores, and it starts with a
+  // letter or a digit. App.labels and App.automatic_labels give the labels of an agent. Empty:
+  // any agent of the project.
+  repeated string labels = 1;
 }
 
 // A block of a pipeline that links a version of a fragment of the library of its workspace. The
