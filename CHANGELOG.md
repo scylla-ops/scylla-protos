@@ -7,6 +7,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-24
+
+### Added
+
+- Agent labels. `AppService.SetAppLabels` replaces the labels that the admins of a workspace
+  give to an App, and `App` has `labels` and `automatic_labels` (from the host of its agent). A
+  pipeline and a pipeline file have `agent` (`AgentSettings`, with `labels`), and a job keeps
+  them in `agent_labels`: the job goes only to an agent with each label. A pending job that
+  waits for such an agent gives the reason `NO_AGENT_WITH_LABELS`.
+
 ## [0.7.0] - 2026-11-24
 
 The API of the new backend. It replaces the API of the 0.6 server, with no compatibility.
