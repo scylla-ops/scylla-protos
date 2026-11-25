@@ -7,6 +7,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-25
+
+### Added
+
+- Scylla pipelines next to file pipelines. A project that takes its pipelines from the files of its
+  repository keeps its editor pipelines, and `CreatePipeline` makes one there. `Pipeline` has `key`
+  (the key of its report, which an editor pipeline and a file pipeline of a project share) and
+  `key_taken_at`: a file of the default branch that takes the key of an editor pipeline wins, and
+  the editor pipeline sends no report (`KEY_TAKEN` in `JobReports.no_report_reason`). A name whose
+  key a file pipeline has gives `PIPELINE_KEY_TAKEN`. `PipelineSummary` has `source` and
+  `key_taken`, and `MergeBlock` has `pipeline_source`: in such a project, a new merge rule for an
+  editor pipeline gives `MERGE_BLOCK_FILE_ONLY`.
+- Git events for an editor pipeline in such a project. `PipelineService.SetPipelineGitEvents` lets
+  the admins of a workspace allow or stop its push, pull request and tag triggers (route permission
+  `set_pipeline_git_events`), with `Pipeline.git_events_allowed_at` and `git_events_allowed_by`.
+  Until then, `TriggerService` refuses such a trigger with `GIT_EVENTS_NOT_ALLOWED`.
+- `AccountService.ResendVerificationEmail` sends a new link to verify the email of an account that
+  waits for its check, with the same answer for each email. `ListSignInMethodsResponse.mail_sender`
+  gives the address that the mails of the server come from.
+
+### Changed
+
+- `SignUp` with an email whose account waits for its check sends a new verify link, and the account
+  does not change. `SetPipelineSource` to the files keeps the editor pipelines: they are no longer
+  archived.
+
 ## [0.7.1] - 2026-11-24
 
 ### Added
@@ -81,5 +107,7 @@ The API of the new backend. It replaces the API of the 0.6 server, with no compa
 - **Breaking:** the API of the new backend replaces the API of the 0.6 server. It keeps no
   compatibility, so the check of breaking changes is removed from the repository.
 
-[Unreleased]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/scylla-ops/scylla-protos/releases/tag/v0.7.0
