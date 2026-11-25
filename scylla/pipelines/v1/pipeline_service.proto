@@ -15,17 +15,22 @@ import "scylla/pipelines/v1/source.proto";
 // pipeline files of its repository. Each RPC needs an authenticated actor, else UNAUTHENTICATED.
 // An unknown pipeline gives PERMISSION_DENIED, as a refusal does.
 service PipelineService {
-  // Creates a pipeline in a project: the editors of the project, and the members of its
-  // workspace. A bad node or a bad place gives INVALID_ARGUMENT with the path of the value, for
-  // example nodes[2].env[0].name. A project that takes its pipelines from the files of its
-  // repository gives FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY.
+  // Creates an editor pipeline in a project: the editors of the project, and the members of its
+  // workspace. A project that takes its pipelines from the files of its repository also takes
+  // editor pipelines. A bad node or a bad place gives INVALID_ARGUMENT with the path of the
+  // value, for example nodes[2].env[0].name. A name whose key is the key of a file pipeline of
+  // the default branch gives FAILED_PRECONDITION with the reason PIPELINE_KEY_TAKEN, and the
+  // ErrorInfo metadata "key" gives the key.
   rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);
   // Reads one pipeline with its saved places.
   rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse);
   // Changes the name or the nodes of a pipeline. The request carries the version that the
   // client read: another version gives ABORTED, and the client reads the pipeline again. The
   // places of the nodes that a change removes go away. A file pipeline or an archived pipeline
-  // gives FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY.
+  // gives FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY. A new name whose key is a new
+  // key, and the key of a file pipeline of the default branch, gives FAILED_PRECONDITION with the
+  // reason PIPELINE_KEY_TAKEN, and the ErrorInfo metadata "key" gives the key. A new name with a
+  // free key frees a pipeline whose key a file took.
   rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse);
   // Saves places of a pipeline: the editors of the project, and the members of its workspace. The
   // request holds only the places that changed, and the other places stay. An id that is not a
@@ -85,12 +90,20 @@ service PipelineService {
   // list_pipeline_files: the readers of the project.
   rpc ListPipelineFiles(ListPipelineFilesRequest) returns (ListPipelineFilesResponse);
   // Sets where the pipelines of a project come from. To the files: the project needs a linked
-  // repository, else FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK; its editor pipelines
-  // become archived, and the files of the default branch become pipelines. To the editor: the
-  // archived pipelines come back, and the file pipelines become archived and hidden. The jobs
-  // stay. A move to the files reads the default branch, with the codes of RunPipeline on a ref.
-  // The route permission is set_pipeline_source: the editors of the project.
+  // repository, else FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK; the files of the
+  // default branch become pipelines, and the editor pipelines stay. An editor pipeline whose key
+  // a file takes gets key_taken_at. To the editor: the archived pipelines come back, and the file
+  // pipelines become archived and hidden. The jobs stay. A move to the files reads the default
+  // branch, with the codes of RunPipeline on a ref. The route permission is set_pipeline_source:
+  // the editors of the project.
   rpc SetPipelineSource(SetPipelineSourceRequest) returns (SetPipelineSourceResponse);
+  // Lets the push, pull request and tag triggers of an editor pipeline start runs in a project
+  // that takes its pipelines from the files, or stops them. A run of a pull request from a fork
+  // still waits for an approval and gets no secret. A stop keeps the triggers: they start no run
+  // until a new opt-in. A file pipeline or an archived pipeline gives FAILED_PRECONDITION with
+  // the reason PIPELINE_READ_ONLY. The route permission is set_pipeline_git_events: the admins
+  // of the workspace.
+  rpc SetPipelineGitEvents(SetPipelineGitEventsRequest) returns (SetPipelineGitEventsResponse);
 }
 
 // The input of CreatePipeline.
@@ -339,3 +352,18 @@ message SetPipelineSourceRequest {
 
 // The output of SetPipelineSource.
 message SetPipelineSourceResponse {}
+
+// The input of SetPipelineGitEvents.
+message SetPipelineGitEventsRequest {
+  // The editor pipeline. Required.
+  scylla.common.v1.Id pipeline_id = 1;
+  // True lets the Git events start runs, false stops them. An opt-in that is already on keeps
+  // its time and its actor.
+  bool allowed = 2;
+}
+
+// The output of SetPipelineGitEvents.
+message SetPipelineGitEventsResponse {
+  // The pipeline after the change. The change does not change its version.
+  Pipeline pipeline = 1;
+}

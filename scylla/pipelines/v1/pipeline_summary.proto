@@ -5,6 +5,7 @@ package scylla.pipelines.v1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "scylla/common/v1/id.proto";
+import "scylla/integrations/v1/vcs.proto";
 import "scylla/pipelines/v1/job.proto";
 import "scylla/pipelines/v1/trigger.proto";
 
@@ -37,11 +38,18 @@ message PipelineSummary {
   bool active = 10;
   // The kinds of the triggers that can start a job, each kind one time, in the order of
   // TriggerKind: the enabled triggers, and the on section of a pipeline file. An archived
-  // pipeline and a file pipeline whose file left the default branch have none. Empty: only
-  // RunPipeline starts the pipeline.
+  // pipeline and a file pipeline whose file left the default branch have none. In a project
+  // that takes its pipelines from the files, the push, pull request and tag triggers of an
+  // editor pipeline count only with Pipeline.git_events_allowed_at. Empty: only RunPipeline
+  // starts the pipeline.
   repeated TriggerKind trigger_kinds = 11;
   // The next fire of the enabled cron triggers. Not set when the pipeline has no such fire.
   NextFire next_fire = 12;
+  // Where the pipeline comes from: the editor, or a file of the linked repository.
+  scylla.integrations.v1.PipelineSource source = 13;
+  // True when a file of the default branch took the key of this editor pipeline: it sends no
+  // report. Pipeline.key_taken_at tells when.
+  bool key_taken = 14;
 }
 
 // One recent job of a pipeline.

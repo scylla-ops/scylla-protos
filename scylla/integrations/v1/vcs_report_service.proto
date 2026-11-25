@@ -38,8 +38,10 @@ message JobReports {
   // The reports: one for each pipeline of the job.
   repeated VcsReport reports = 2;
   // Why the job has no report, as a stable code: NO_SOURCE (the job has no commit),
-  // NO_REPOSITORY_LINK, REPOSITORY_NOT_ACTIVE (the reports are on, but the link or its
-  // connection is not active) or REPORTS_OFF. Empty when the job has reports.
+  // NO_REPOSITORY_LINK, KEY_TAKEN (the reports are on, but a file of the default branch took the
+  // key of the editor pipeline of the job: Pipeline.key_taken_at), REPOSITORY_NOT_ACTIVE (the
+  // reports are on, but the link or its connection is not active) or REPORTS_OFF. Empty when the
+  // job has reports.
   string no_report_reason = 3;
 }
 

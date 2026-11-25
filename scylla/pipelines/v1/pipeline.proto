@@ -28,7 +28,8 @@ message Pipeline {
   // The time of the last change.
   google.protobuf.Timestamp updated_at = 9;
   // Where the pipeline comes from: the editor, or a file of the linked repository. A file
-  // pipeline is read only: change its file.
+  // pipeline is read only: change its file. A project that takes its pipelines from the files
+  // also keeps its editor pipelines.
   scylla.integrations.v1.PipelineSource source = 10;
   // The key of a file pipeline: pipeline for .scylla/pipeline.<ext>, else the name of its file
   // with no extension. Empty for an editor pipeline.
@@ -39,10 +40,10 @@ message Pipeline {
   // How the agent gets the code before the first node. Always set, with the defaults for the
   // values that nobody set.
   CheckoutSettings checkout = 13;
-  // The time when the project moved to the other source: an editor pipeline is archived when the
-  // project moves to the repository files, and a file pipeline when the project moves back to
-  // the editor. An archived pipeline is read only, and its triggers stop. Not set for an active
-  // pipeline.
+  // The time when the pipeline stopped: a file pipeline when the project moves back to the
+  // editor, or an editor pipeline that an older server archived when the project moved to the
+  // repository files. An archived pipeline is read only, and its triggers stop. Not set for an
+  // active pipeline.
   google.protobuf.Timestamp archived_at = 14;
   // The time when the server saw that the file of a file pipeline is not on the default branch:
   // the file left it, or a run on another branch made the pipeline. Its jobs stay. Not set while
@@ -55,6 +56,21 @@ message Pipeline {
   // What the agent of a job of the pipeline must have. Always set: no labels gives each job to
   // any agent of the project.
   AgentSettings agent = 18;
+  // The key of the pipeline in the name of its report, scylla/<key>: file_key for a file
+  // pipeline, else the key of the name of an editor pipeline (lower case letters, digits and
+  // dashes). A file pipeline and an editor pipeline of one project share the keys.
+  string key = 19;
+  // The time when a file of the default branch took the key of this editor pipeline. The file
+  // wins: the editor pipeline still runs, but it sends no report. Rename the pipeline to free
+  // it. Not set for a file pipeline, and while no file has the key.
+  google.protobuf.Timestamp key_taken_at = 20;
+  // The time when a workspace admin let the push, pull request and tag triggers of this editor
+  // pipeline start runs in a project that takes its pipelines from the files. Not set: these
+  // triggers start no run in such a project. A project of the editor needs no such opt-in, and
+  // a file pipeline takes its Git events from the on section of its file.
+  google.protobuf.Timestamp git_events_allowed_at = 21;
+  // The actor that let the Git events start runs. Not set with git_events_allowed_at.
+  scylla.common.v1.Id git_events_allowed_by = 22;
 }
 
 // What the agent of a job of a pipeline must have.

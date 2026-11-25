@@ -21,7 +21,10 @@ service TriggerService {
   // SECRET_KEY_MISSING. A push, pull request or tag trigger needs a linked repository, else
   // FAILED_PRECONDITION with the reason NO_REPOSITORY_LINK. On a file pipeline, it gives
   // FAILED_PRECONDITION with the reason PIPELINE_READ_ONLY: the on section of the file gives its
-  // Git triggers. A bad glob, more than 32 globs in a list, or an unknown event of a pull request
+  // Git triggers. On an editor pipeline of a project that takes its pipelines from the files, it
+  // gives FAILED_PRECONDITION with the reason GIT_EVENTS_NOT_ALLOWED until a workspace admin lets
+  // the Git events start runs (PipelineService.SetPipelineGitEvents). A bad glob, more than 32
+  // globs in a list, or an unknown event of a pull request
   // gives INVALID_ARGUMENT on its field, for example push.exclude_branches[1]. A bad condition of a
   // webhook gives INVALID_ARGUMENT on its field, for example webhook.conditions[0].json_pointer:
   // more than 32 conditions, no source or operator, an empty header name, a JSON pointer that does
