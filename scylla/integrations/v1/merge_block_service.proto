@@ -18,7 +18,10 @@ service MergeBlockService {
   // no role on the provider, the rule gets the state NEEDS_PERMISSION, and nothing changes on the
   // provider. A project with no link gives FAILED_PRECONDITION with the reason
   // NO_REPOSITORY_LINK, and a link or a connection that is not active gives the reason
-  // REPOSITORY_NOT_ACTIVE. A pipeline that is not of the project gives NOT_FOUND. A server with
+  // REPOSITORY_NOT_ACTIVE. A pipeline that is not of the project gives NOT_FOUND. In a project
+  // that takes its pipelines from the files, a rule to turn on for an editor pipeline gives
+  // FAILED_PRECONDITION with the reason MERGE_BLOCK_FILE_ONLY: only a file pipeline goes through
+  // the review of a pull request. A rule to turn off works. A server with
   // no GitHub App for the connection gives the reason APP_MISSING, and a server with no key of
   // the secrets gives the reason SECRET_KEY_MISSING. The route permission is set_merge_block:
   // the editors of the project.

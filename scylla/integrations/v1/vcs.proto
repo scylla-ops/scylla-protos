@@ -300,6 +300,10 @@ message MergeBlock {
   string action_url = 8;
   // The time of the last change. Not set for a pipeline with no rule.
   google.protobuf.Timestamp updated_at = 9;
+  // Where the pipeline of the rule comes from. In a project that takes its pipelines from the
+  // files, only a file pipeline can get a new rule: its file goes through the review of a pull
+  // request. PIPELINE_SOURCE_UNSPECIFIED for the rule of the project on GitLab.
+  PipelineSource pipeline_source = 10;
 }
 
 // The report of one pipeline of a job to the provider: a check run on GitHub or a commit status
