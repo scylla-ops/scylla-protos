@@ -9,7 +9,8 @@ import "scylla/auth/v1/token_service.proto";
 // accounts exist.
 service AccountService {
   // Creates a user that signs in with a password. With an invitation, the email is verified
-  // and the invitation is accepted. Else the server sends a link to verify the email. The
+  // and the invitation is accepted. Else the server sends a link to verify the email. A known
+  // email that waits for its check gets a new link, and its account does not change. The
   // sign-up mode of the server can refuse it with FAILED_PRECONDITION. When the terms of service
   // of the instance need an acceptance, a request that does not accept their current version
   // gives FAILED_PRECONDITION with the reason TERMS_NOT_ACCEPTED, and the ErrorInfo metadata
@@ -17,6 +18,11 @@ service AccountService {
   rpc SignUp(SignUpRequest) returns (SignUpResponse);
   // Verifies the email of a new user with the token of the link, and activates the user.
   rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
+  // Sends a new link to verify the email, if the email has an account that waits for its check.
+  // The answer comes first, and it is the same for each email. The server sends at most one link
+  // each 60 seconds for one account. A text that is not an email gives INVALID_ARGUMENT. Too many
+  // requests for one email or from one IP address give RESOURCE_EXHAUSTED.
+  rpc ResendVerificationEmail(ResendVerificationEmailRequest) returns (ResendVerificationEmailResponse);
   // Signs in with an email or a handle and a password, and opens a session. An unknown
   // identifier and a wrong password get the same answer.
   rpc SignIn(SignInRequest) returns (SignInResponse);
@@ -25,7 +31,8 @@ service AccountService {
   rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
   // Sets a new password with the token of the link. It closes each session of the user.
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
-  // Lists the ways to sign in: the identity providers that are on, and the sign-up mode.
+  // Lists the ways to sign in: the identity providers that are on, the sign-up mode, and the
+  // sender of the mails.
   rpc ListSignInMethods(ListSignInMethodsRequest) returns (ListSignInMethodsResponse);
   // Returns the link that waits in the cookie of this browser. The callback of an identity provider
   // leaves one when the provider gives a verified email that an account with a password has. It
@@ -64,6 +71,15 @@ message VerifyEmailRequest {
 
 // The output of VerifyEmail.
 message VerifyEmailResponse {}
+
+// The input of ResendVerificationEmail.
+message ResendVerificationEmailRequest {
+  // The email address of the account.
+  string email = 1;
+}
+
+// The output of ResendVerificationEmail. It is the same for a known and an unknown email.
+message ResendVerificationEmailResponse {}
 
 // The input of SignIn.
 message SignInRequest {
@@ -112,6 +128,9 @@ message ListSignInMethodsResponse {
   repeated SignInProvider providers = 1;
   // The sign-up mode of the server: open, invite_only or closed.
   string sign_up_mode = 2;
+  // The email address that the mails of the server come from, so that a person can find a mail,
+  // also in a spam folder.
+  string mail_sender = 3;
 }
 
 // The input of GetPendingLink.
