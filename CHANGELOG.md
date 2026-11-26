@@ -13,6 +13,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   of the web icon set with its color, or the id of an uploaded image). `UpdateProjectRequest.icon`
   (`IconChange`) sets a glyph, sends the bytes of a PNG, JPEG or WebP image, or resets the icon to
   the default when it has no kind.
+- Search, order and health for a list of projects. `ListProjectsRequest` has `query` (the name, the
+  description, the repository and the pipeline names), `order` (`ProjectOrder`: position, name, last
+  job, failed first) and `health` (`ProjectHealth`: all, failed, running).
+  `ListProjectsResponse.counts` (`ProjectCounts`) gives the count of the projects that the search
+  finds, of the failing and the running ones, and of their pipelines.
+  `RepositoryService.ListRepositoryLinks` gives the repository links of a workspace, or of at most
+  100 projects, in one call (route permission `list_repository_links`).
 
 ## [0.7.2] - 2026-11-25
 
