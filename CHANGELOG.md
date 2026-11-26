@@ -47,6 +47,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   (`scylla.common.v1.Icon`), and `UpdateWorkspaceRequest.icon` changes it. `ProjectGroup.color`
   gives the folder color of a group (a theme color or `#rrggbb`, empty for the default folder);
   `CreateProjectGroupRequest.color` and `UpdateProjectGroupRequest.color` set it.
+- `RoleHolderEntry` has `avatar` (the avatar that a user chose: a photo or the color of the
+  initials) and `icon` (the custom icon of an app), so that a list of role holders shows each actor
+  as everywhere else.
 
 ## [0.7.2] - 2026-11-25
 
