@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package scylla.platform.v1;
+
+// The mail relay of the instance: the SMTP server that sends the mails of the server. With no
+// relay of the instance, the server uses its default: SCYLLA_SMTP_URL and SCYLLA_MAIL_FROM, else it
+// logs each mail and sends none. A change applies to the next send, also of a mail that waits in
+// the outbox, with no restart. Each RPC checks its route permission on the platform: an instance
+// admin passes, and a role of the platform level gives it, else PERMISSION_DENIED.
+service MailSettingsService {
+  // Returns the mail settings of the instance, with no password. The route permission is
+  // get_mail_settings.
+  rpc GetMailSettings(GetMailSettingsRequest) returns (GetMailSettingsResponse);
+  // Sets the relay of the instance. The route permission is update_mail_settings. A bad value
+  // gives INVALID_ARGUMENT with the name of its field. A new password on a server with no key of
+  // the secrets gives FAILED_PRECONDITION with the reason SECRET_KEY_MISSING.
+  rpc UpdateMailSettings(UpdateMailSettingsRequest) returns (UpdateMailSettingsResponse);
+  // Removes the relay of the instance: the server uses its default again. The route permission is
+  // reset_mail_settings.
+  rpc ResetMailSettings(ResetMailSettingsRequest) returns (ResetMailSettingsResponse);
+  // Sends a test mail to an address through the relay that the server uses now, at once and with
+  // no outbox, and returns the answer of the relay or its error. The route permission is
+  // send_test_mail. An address that is not an email gives INVALID_ARGUMENT. A server with no relay
+  // gives FAILED_PRECONDITION with the reason MAIL_RELAY_MISSING.
+  rpc SendTestMail(SendTestMailRequest) returns (SendTestMailResponse);
+}
+
+// How the server makes its connection to the relay secure.
+enum MailSecurity {
+  // Not used. A request with it gives INVALID_ARGUMENT.
+  MAIL_SECURITY_UNSPECIFIED = 0;
+  // TLS from the start of the connection (SMTPS), usually on port 465.
+  MAIL_SECURITY_TLS = 1;
+  // A plain connection that STARTTLS makes secure, usually on port 587. A send to a relay with no
+  // STARTTLS fails.
+  MAIL_SECURITY_STARTTLS = 2;
+  // No TLS: the mails and the password go in clear. Only for a relay on the same host or on a
+  // private network, for example Mailpit in development.
+  MAIL_SECURITY_NONE = 3;
+}
+
+// The relay of the instance, as an instance admin set it. It has no password.
+message MailRelay {
+  // The host name or the IP address of the relay, for example smtp.tem.scaleway.com.
+  string host = 1;
+  // The TCP port of the relay, from 1 to 65535.
+  uint32 port = 2;
+  // The security of the connection.
+  MailSecurity security = 3;
+  // The user name of the SMTP authentication. Empty: no authentication.
+  string username = 4;
+  // True when the server keeps a password for the user name. The API never returns the password.
+  bool password_set = 5;
+  // The address of the sender of the mails, for example no-reply@scylla.example.
+  string from_address = 6;
+  // The name of the sender, for example Scylla. Empty: the mails show the address only.
+  string from_name = 7;
+}
+
+// The mail settings of the instance.
+message MailSettings {
+  // The relay of the instance. Not set: the server uses its default.
+  MailRelay relay = 1;
+  // The host of the default relay of the server, from SCYLLA_SMTP_URL. Empty: the server has no
+  // default relay, and with no relay of the instance it logs each mail and sends none.
+  string default_host = 2;
+}
+
+// The input of GetMailSettings.
+message GetMailSettingsRequest {}
+
+// The output of GetMailSettings.
+message GetMailSettingsResponse {
+  // The settings.
+  MailSettings settings = 1;
+}
+
+// The input of UpdateMailSettings: the whole relay.
+message UpdateMailSettingsRequest {
+  // The host name or the IP address of the relay: 1 to 253 letters, digits, dots, dashes or
+  // colons.
+  string host = 1;
+  // The TCP port of the relay, from 1 to 65535.
+  uint32 port = 2;
+  // The security of the connection.
+  MailSecurity security = 3;
+  // The user name of the SMTP authentication, one line of at most 255 characters. Empty: no
+  // authentication, and the server removes the saved password.
+  string username = 4;
+  // The password, or the API key that the relay takes as a password, one line of at most 1024
+  // bytes. Not set: the saved password does not change. A user name with no password gives
+  // INVALID_ARGUMENT.
+  optional string password = 5;
+  // The address of the sender of the mails. The relay must allow it.
+  string from_address = 6;
+  // The name of the sender, one line of at most 100 characters. Empty: the address only.
+  string from_name = 7;
+}
+
+// The output of UpdateMailSettings.
+message UpdateMailSettingsResponse {
+  // The settings after the change.
+  MailSettings settings = 1;
+}
+
+// The input of ResetMailSettings.
+message ResetMailSettingsRequest {}
+
+// The output of ResetMailSettings.
+message ResetMailSettingsResponse {
+  // The settings after the change: no relay of the instance.
+  MailSettings settings = 1;
+}
+
+// The input of SendTestMail.
+message SendTestMailRequest {
+  // The address that gets the test mail.
+  string to = 1;
+}
+
+// The output of SendTestMail. A refusal of the relay is an answer, not an error of the RPC.
+message SendTestMailResponse {
+  // True when the relay accepted the mail.
+  bool accepted = 1;
+  // The host of the relay that got the mail.
+  string host = 2;
+  // The answer of the relay with its code and its queue id, for example 250 2.0.0 Ok: queued as
+  // 12AE6699493. Empty when the relay did not accept the mail.
+  string reply = 3;
+  // The Message-ID of the mail. Empty when the relay did not accept the mail.
+  string message_id = 4;
+  // Why the relay did not accept the mail: the error of the connection or the answer of the
+  // relay, with no password. Empty when the relay accepted the mail.
+  string error = 5;
+}
