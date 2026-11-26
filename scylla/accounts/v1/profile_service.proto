@@ -36,6 +36,13 @@ service ProfileService {
   rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
   // Removes an identity. The last way to sign in cannot be removed: FAILED_PRECONDITION.
   rpc UnlinkIdentity(UnlinkIdentityRequest) returns (UnlinkIdentityResponse);
+  // Downloads again the photo of an identity of the user at its provider (the GitHub avatar, the
+  // OIDC claim "picture"), and makes it the image of the avatar, as UpdateProfile does with an
+  // upload. It replaces the current image. An unknown identity gives NOT_FOUND. An identity with no
+  // photo gives FAILED_PRECONDITION with the reason NO_PICTURE. A photo that the server cannot
+  // download or read gives FAILED_PRECONDITION with the reason PICTURE_UNAVAILABLE. The server
+  // also does this one time when it makes an account with a provider.
+  rpc ImportAvatar(ImportAvatarRequest) returns (ImportAvatarResponse);
   // Lists the open sessions of the user, newest first.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
   // Closes one session of the user. Its tokens stop at once.
@@ -167,6 +174,9 @@ message Identity {
   string email = 3;
   // The time of the link.
   google.protobuf.Timestamp linked_at = 4;
+  // True if the provider gave a photo of the person at the last sign-in or link. ImportAvatar
+  // uses it.
+  bool has_picture = 5;
 }
 
 // The input of UnlinkIdentity.
@@ -179,6 +189,20 @@ message UnlinkIdentityRequest {
 
 // The output of UnlinkIdentity.
 message UnlinkIdentityResponse {}
+
+// The input of ImportAvatar.
+message ImportAvatarRequest {
+  // The slug of the provider.
+  string provider = 1;
+  // The id of the person at the provider.
+  string subject = 2;
+}
+
+// The output of ImportAvatar.
+message ImportAvatarResponse {
+  // The user after the change.
+  User user = 1;
+}
 
 // The input of ListSessions.
 message ListSessionsRequest {}
