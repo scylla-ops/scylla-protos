@@ -3,6 +3,7 @@ syntax = "proto3";
 package scylla.notifications.v1;
 
 import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 
@@ -68,6 +69,18 @@ message Notification {
   google.protobuf.Timestamp done_at = 17;
   // The invitation of the row, as it is now. Not set if the row has no invitation.
   NotificationInvitation invitation = 18;
+  // The icon of the workspace. Not set if the fact is in no workspace, or if the workspace has
+  // the default icon.
+  scylla.common.v1.Icon workspace_icon = 19;
+  // The kind of the actor, for example user or app. Empty if there is no actor or the user no
+  // longer exists.
+  string actor_kind = 20;
+  // The avatar that the actor chose, if it is a user. Not set for an app, and for a user with
+  // the default avatar.
+  scylla.common.v1.Avatar actor_avatar = 21;
+  // The custom icon of the actor, if it is an app. Not set for a user, and for an app with the
+  // default icon.
+  scylla.common.v1.Icon actor_icon = 22;
 }
 
 // The invitation of a notification, read at the time of the list.

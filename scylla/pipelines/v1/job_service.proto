@@ -150,6 +150,10 @@ message JobFilter {
   // Only the jobs with one of these origins. Empty gives each origin. JOB_ORIGIN_UNSPECIFIED gives
   // INVALID_ARGUMENT.
   repeated JobOrigin origins = 8;
+  // Only the jobs whose number, branch, tag, commit title or pipeline name contains this text, in
+  // any case. The number of a job is the last 8 characters of its id, as the web app shows it. A
+  // job with no source matches only by its number or its pipeline name. Empty gives each job.
+  string query = 9;
 }
 
 // How much of each job a list gives.

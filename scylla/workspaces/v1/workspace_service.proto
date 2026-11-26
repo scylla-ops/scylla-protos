@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package scylla.workspaces.v1;
 
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 import "scylla/workspaces/v1/workspace.proto";
@@ -15,16 +17,24 @@ service WorkspaceService {
   // workspace of a user does not count, and an instance admin has no limit. A slug in use gives FAILED_PRECONDITION with the reason
   // SLUG_IN_USE.
   rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
-  // Reads one workspace, by its id or by its slug. A slug is public. An unknown slug gives
-  // PERMISSION_DENIED, as a refusal does.
+  // Reads one workspace, by its id or by its slug, with its details. A slug is public. An unknown
+  // slug gives PERMISSION_DENIED, as a refusal does.
   rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse);
-  // Lists the workspaces that the caller can read, oldest first: the workspaces where it has a
-  // role.
+  // Lists the workspaces that the caller can read, oldest first, with the details of each one:
+  // the workspaces where it has a role, and for a caller with an instance role that shows each
+  // workspace, the other workspaces of the instance too.
   rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
-  // Changes the name, the slug, the personal token switch or the time zone of a workspace. The
-  // caller needs the permission update_workspace: for example the roles owner and admin. A slug in
-  // use gives FAILED_PRECONDITION with the reason SLUG_IN_USE. A time zone that is not an IANA
-  // name gives INVALID_ARGUMENT on time_zone.
+  // Lists each workspace of the instance, with the details of each one, for the console of the
+  // workspaces. The caller needs the permission list_all_workspaces on the platform, else
+  // PERMISSION_DENIED: an instance admin, or a role of the platform level with workspaces.view. A
+  // query of more than 100 characters gives INVALID_ARGUMENT on query, and a token of another list
+  // gives INVALID_ARGUMENT on page.token.
+  rpc ListAllWorkspaces(ListAllWorkspacesRequest) returns (ListAllWorkspacesResponse);
+  // Changes the name, the slug, the personal token switch, the time zone or the icon of a
+  // workspace. The caller needs the permission update_workspace: for example the roles owner and
+  // admin. A slug in use gives FAILED_PRECONDITION with the reason SLUG_IN_USE. A time zone that
+  // is not an IANA name gives INVALID_ARGUMENT on time_zone. A bad icon gives INVALID_ARGUMENT
+  // on icon.
   rpc UpdateWorkspace(UpdateWorkspaceRequest) returns (UpdateWorkspaceResponse);
   // Deletes a workspace, with its owners and its invitations. The caller needs the permission
   // delete_workspace, else PERMISSION_DENIED: for example the role owner. A workspace with a
@@ -63,12 +73,17 @@ message GetWorkspaceRequest {
 message GetWorkspaceResponse {
   // The workspace.
   Workspace workspace = 1;
+  // The details of the workspace.
+  WorkspaceDetails details = 2;
 }
 
 // The input of ListWorkspaces.
 message ListWorkspacesRequest {
   // The page to return.
   scylla.common.v1.PageRequest page = 1;
+  // True keeps only the workspaces where the caller is an owner or has a role. For a caller with
+  // no instance role that shows each workspace, it changes nothing.
+  bool only_with_role = 2;
 }
 
 // The output of ListWorkspaces.
@@ -77,6 +92,86 @@ message ListWorkspacesResponse {
   repeated Workspace workspaces = 1;
   // How to get the next page.
   scylla.common.v1.PageResponse page = 2;
+  // The details of each workspace of the page, in the order of workspaces.
+  repeated WorkspaceDetails details = 3;
+}
+
+// The input of ListAllWorkspaces.
+message ListAllWorkspacesRequest {
+  // Only the workspaces with this text in their name or in their slug, or in the display name, the
+  // handle or the primary email of one of their owners, with no difference between upper and lower
+  // case. The server trims it. Empty keeps each workspace. At most 100 characters.
+  string query = 1;
+  // The order of the workspaces.
+  WorkspaceOrder order = 2;
+  // True keeps only the workspaces where the caller is not an owner and has no role.
+  bool others_only = 3;
+  // The page to return. The token of the next page is valid only with the same query, order and
+  // others_only.
+  scylla.common.v1.PageRequest page = 4;
+}
+
+// The output of ListAllWorkspaces.
+message ListAllWorkspacesResponse {
+  // The workspaces of the page, in the order of the request.
+  repeated Workspace workspaces = 1;
+  // The details of each workspace of the page, in the order of workspaces.
+  repeated WorkspaceDetails details = 2;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 3;
+  // The number of workspaces that the query and others_only keep, on all the pages.
+  uint32 total = 4;
+}
+
+// The order of a list of workspaces.
+enum WorkspaceOrder {
+  // WORKSPACE_ORDER_NAME.
+  WORKSPACE_ORDER_UNSPECIFIED = 0;
+  // The name, from A to Z, with no difference between upper and lower case, then the display name
+  // of the first owner.
+  WORKSPACE_ORDER_NAME = 1;
+  // The newest workspace first.
+  WORKSPACE_ORDER_NEWEST = 2;
+  // The oldest workspace first.
+  WORKSPACE_ORDER_OLDEST = 3;
+  // The workspace with the newest activity first. A workspace with no activity in the last 30 days
+  // comes last.
+  WORKSPACE_ORDER_LAST_ACTIVITY = 4;
+}
+
+// The facts of a workspace that tell it apart from the others in a list: its first owner, its
+// size, its last activity and the role of the caller in it.
+message WorkspaceDetails {
+  // The workspace.
+  scylla.common.v1.Id workspace_id = 1;
+  // The first owner: the oldest holder of the role owner. Not set if the workspace has no owner.
+  WorkspaceOwner owner = 2;
+  // The number of actors with a role on the workspace: its owners, and each user or App with a
+  // role of the workspace. A role on one project only does not count.
+  uint32 member_count = 3;
+  // The number of projects in the workspace.
+  uint32 project_count = 4;
+  // The time of the newest entry of the activity feed of the workspace. Not set if the workspace
+  // has no activity in the last 30 days.
+  google.protobuf.Timestamp last_activity_at = 5;
+  // The role of the caller in the workspace: owner, admin, member or viewer, or the name of a
+  // custom role. Empty if the caller has no role and an instance role shows the workspace.
+  string role = 6;
+}
+
+// The owner of a workspace, as a list of workspaces shows it.
+message WorkspaceOwner {
+  // The id of the user.
+  scylla.common.v1.Id user_id = 1;
+  // The display name.
+  string display_name = 2;
+  // The handle. Empty if the user has none.
+  string handle = 3;
+  // The primary email. Only for a caller with an instance role that shows each workspace: empty
+  // for the other callers.
+  string email = 4;
+  // The avatar that the user chose. Not set for the default avatar.
+  scylla.common.v1.Avatar avatar = 5;
 }
 
 // The input of UpdateWorkspace. A field that is not set does not change.
@@ -91,6 +186,10 @@ message UpdateWorkspaceRequest {
   optional bool personal_tokens_enabled = 4;
   // The new time zone: an IANA name, for example Europe/Paris. The name is case sensitive.
   optional string time_zone = 5;
+  // The new icon. Not set: the icon does not change. Set with no kind: the workspace takes the
+  // default icon again. A new image replaces the old image of the workspace, which the server
+  // deletes.
+  scylla.common.v1.IconChange icon = 6;
 }
 
 // The output of UpdateWorkspace.

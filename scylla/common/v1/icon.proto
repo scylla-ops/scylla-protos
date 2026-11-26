@@ -28,6 +28,11 @@ message Icon {
     // changes: a new upload gives a new id.
     Id image_id = 2;
   }
+  // The options of the glyph avatar that the server drew as the image, so that a client opens its
+  // editor with them. Set only with image_id, when the image is a glyph avatar of an App, and
+  // only in the reads of the App itself (GetApp, ListApps and the answers of the App routes). The
+  // image of a glyph avatar is an SVG with the content type image/svg+xml.
+  GlyphAvatar glyph_avatar = 3;
 }
 
 // A change of the custom icon of a resource. With no kind set, the resource takes its default
@@ -42,6 +47,9 @@ message IconChange {
     // of the longer side. Another format (SVG too), a larger file or a file that it cannot read
     // gives INVALID_ARGUMENT.
     bytes image = 2;
+    // A glyph avatar that the server draws as an SVG image. Only an App takes one: a project or
+    // a workspace gives INVALID_ARGUMENT. Bad options give INVALID_ARGUMENT.
+    GlyphAvatar glyph_avatar = 3;
   }
 }
 
@@ -55,4 +63,62 @@ message Avatar {
   // digits or dashes, with a letter first, for example "blue"), or "#rrggbb" in lower case.
   // Empty means the default color.
   string color = 2;
+  // The options of the glyph avatar that the server drew as the image, so that a client opens its
+  // editor with them. Set only with image_id, when the image is a glyph avatar, and only in the
+  // reads of a user (GetMe, UpdateProfile, ImportAvatar, ListUsers). The image of a glyph avatar
+  // is an SVG with the content type image/svg+xml.
+  GlyphAvatar glyph_avatar = 3;
+}
+
+// An avatar of the DiceBear style "Glyphs" (by Matt Houser, CC BY 4.0): a shoulder silhouette
+// with a headpiece in a tinted square. The server draws it as an SVG with dicebear-core 11, and a
+// client draws the same SVG with @dicebear/core 11 for a preview. Each value is explicit, so the
+// same options always give the same image.
+message GlyphAvatar {
+  // The headpiece: "variant01" to "variant35" for the shapes of the style, or "scylla" for the
+  // Scylla head, the four dots of the Scylla mark.
+  string shape = 1;
+  // The paint of the headpiece and of the shoulders. Required.
+  GlyphPaint glyph = 2;
+  // The paint of the background. Not set: solid white.
+  GlyphPaint background = 3;
+  // The mirror of the figure.
+  GlyphFlip flip = 4;
+  // The rotation of the figure, in degrees: -360 to 360.
+  int32 rotate = 5;
+  // The size of the figure, in percent: 50 to 150. 0 gives 100.
+  int32 scale = 6;
+}
+
+// The paint of a part of a glyph avatar: one color, or a gradient of colors.
+message GlyphPaint {
+  // The colors, each "#rrggbb": one color for a solid fill, 2 to 4 colors for a gradient, in
+  // their order. The server keeps them in lower case.
+  repeated string colors = 1;
+  // The fill.
+  GlyphFill fill = 2;
+  // The direction of a linear gradient, in degrees: -360 to 360. 0 goes from left to right.
+  int32 angle = 3;
+}
+
+// The fill of a part of a glyph avatar.
+enum GlyphFill {
+  // A solid fill: the first color.
+  GLYPH_FILL_UNSPECIFIED = 0;
+  // A linear gradient, in the direction of the angle.
+  GLYPH_FILL_LINEAR = 1;
+  // A radial gradient, from the center.
+  GLYPH_FILL_RADIAL = 2;
+}
+
+// The mirror of a glyph avatar.
+enum GlyphFlip {
+  // No mirror.
+  GLYPH_FLIP_UNSPECIFIED = 0;
+  // A mirror from left to right.
+  GLYPH_FLIP_HORIZONTAL = 1;
+  // A mirror from top to bottom.
+  GLYPH_FLIP_VERTICAL = 2;
+  // The two mirrors.
+  GLYPH_FLIP_BOTH = 3;
 }

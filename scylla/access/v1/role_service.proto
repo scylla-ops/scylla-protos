@@ -3,6 +3,7 @@ syntax = "proto3";
 package scylla.access.v1;
 
 import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 
 // Tells the catalog of the permissions, reads the roles, and changes the custom roles. A built-in
@@ -205,6 +206,10 @@ message RoleHolderEntry {
   google.protobuf.Timestamp granted_at = 8;
   // True for an app that runs jobs: an agent. False for a user and for another app.
   bool runner = 9;
+  // The avatar that a user chose. Not set for an app, and for a user with the default avatar.
+  scylla.common.v1.Avatar avatar = 10;
+  // The custom icon of an app. Not set for a user, and for an app with the default icon.
+  scylla.common.v1.Icon icon = 11;
 }
 
 // The output of ListRoleHolders.

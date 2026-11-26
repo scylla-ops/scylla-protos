@@ -43,6 +43,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   `ListProjectsRequest` has `section` (`ProjectSection`: the projects of one group, or the projects
   with no group) and `project_ids` (at most 100 projects). The order `PROJECT_ORDER_POSITION` uses
   the order of the groups and the place of each project in its group.
+- Workspace icons and group folder colors. `Workspace.icon` gives the icon of a workspace
+  (`scylla.common.v1.Icon`), and `UpdateWorkspaceRequest.icon` changes it. `ProjectGroup.color`
+  gives the folder color of a group (a theme color or `#rrggbb`, empty for the default folder);
+  `CreateProjectGroupRequest.color` and `UpdateProjectGroupRequest.color` set it.
+- `RoleHolderEntry` has `avatar` (the avatar that a user chose: a photo or the color of the
+  initials) and `icon` (the custom icon of an app), so that a list of role holders shows each actor
+  as everywhere else.
+- Glyph avatars (the DiceBear style "Glyphs"). `scylla.common.v1.GlyphAvatar` holds the options of
+  the avatar: the shape (`variant01` to `variant35`, or `scylla`, the Scylla head), the paint of the
+  glyph and of the background (colors, solid, linear or radial fill, angle), flip, rotation and
+  size. `UpdateProfileRequest.avatar_glyph` sets the avatar of a person, `IconChange.glyph_avatar`
+  sets the icon of an App, and `Avatar.glyph_avatar` and `Icon.glyph_avatar` give the options back
+  for a new edit.
+
+### Fixed
+
+- WorkspaceService: the new RPC `ListAllWorkspaces` (search, order, `others_only`, page, total),
+  `WorkspaceDetails` and `WorkspaceOwner`, `details` in `GetWorkspaceResponse` and
+  `ListWorkspacesResponse`, and `only_with_role` in `ListWorkspacesRequest`. Only new fields.
+- A notification gives the icon of its workspace and the look of the actor:
+  `Notification.workspace_icon`, `actor_kind`, `actor_avatar` and `actor_icon`. A row of `ListUsers`
+  gives each workspace with its icon and its owner (`UserEntry.workspace_details`, `UserWorkspace`).
 
 ## [0.7.2] - 2026-11-25
 
