@@ -12,8 +12,9 @@ service ProfileService {
   // Returns the user of the caller, with its handle and its instance admin flag, and its
   // acceptance of the terms of service.
   rpc GetMe(GetMeRequest) returns (GetMeResponse);
-  // Changes the display name or the handle. A handle of another user gives
-  // FAILED_PRECONDITION with the reason HANDLE_IN_USE.
+  // Changes the display name, the handle or the avatar. A handle of another user gives
+  // FAILED_PRECONDITION with the reason HANDLE_IN_USE. A bad name, handle, image or color gives
+  // INVALID_ARGUMENT.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Deletes the account. It needs the current password if the user has one. A workspace where
   // the user is the only owner is deleted with the account if it is empty. Else the request
@@ -84,6 +85,16 @@ message UpdateProfileRequest {
   // The new handle: 2 to 39 lower case letters, digits, dots, dashes or underscores, that start
   // with a letter or a digit. An empty text removes the handle.
   optional string handle = 2;
+  // The new image of the avatar: a PNG, JPEG or WebP file of at most 1048576 bytes (1 MiB), and
+  // at most 4096 pixels on each side. The server makes it a square PNG of 256 pixels: it cuts
+  // the center of the longer side. It replaces the old image, which the server deletes. Empty
+  // bytes remove the image. Another format (SVG too), a larger file or a file that the server
+  // cannot read gives INVALID_ARGUMENT.
+  optional bytes avatar_image = 3;
+  // The new color of the initials: the name of a color of the web app (1 to 32 lower case
+  // letters, digits or dashes, with a letter first), or "#rrggbb". An empty text gives the
+  // default color.
+  optional string avatar_color = 4;
 }
 
 // The output of UpdateProfile.

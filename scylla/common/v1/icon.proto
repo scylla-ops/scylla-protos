@@ -44,3 +44,15 @@ message IconChange {
     bytes image = 2;
   }
 }
+
+// The avatar of a person: an uploaded image, and the color of the initials. With no image, the
+// clients show the initials of the person on the color.
+message Avatar {
+  // The id of the uploaded image. Not set: the person has no image. The route GET /images/{id}
+  // of the server gives it, as a square PNG of 256 pixels with the content type image/png.
+  Id image_id = 1;
+  // The color of the initials: the name of a color of the web app (1 to 32 lower case letters,
+  // digits or dashes, with a letter first, for example "blue"), or "#rrggbb" in lower case.
+  // Empty means the default color.
+  string color = 2;
+}

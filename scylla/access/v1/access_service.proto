@@ -3,6 +3,7 @@ syntax = "proto3";
 package scylla.access.v1;
 
 import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 
@@ -161,6 +162,10 @@ message Member {
   repeated MemberRole roles = 5;
   // True for an app that runs jobs: an agent. False for a user and for another app.
   bool runner = 6;
+  // The avatar that a user chose. Not set for an app, and for a user with the default avatar.
+  scylla.common.v1.Avatar avatar = 7;
+  // The custom icon of an app. Not set for a user, and for an app with the default icon.
+  scylla.common.v1.Icon icon = 8;
 }
 
 // The output of ListMembers.

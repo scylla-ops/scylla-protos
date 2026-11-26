@@ -20,6 +20,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   finds, of the failing and the running ones, and of their pipelines.
   `RepositoryService.ListRepositoryLinks` gives the repository links of a workspace, or of at most
   100 projects, in one call (route permission `list_repository_links`).
+- A photo for a user and an icon for an App. `User.avatar` and `Member.avatar`
+  (`scylla.common.v1.Avatar`) give the uploaded image of a user or the color of the initials.
+  `UpdateProfileRequest.avatar_image` sets the image (empty bytes remove it), and `avatar_color`
+  sets the color (an empty text gives the main color). `App.icon` and `Member.icon` give the icon of
+  an App. `AppService.SetAppIcon` sets a glyph with its color, an image, or the default icon (route
+  permission `set_app_icon`).
 
 ## [0.7.2] - 2026-11-25
 

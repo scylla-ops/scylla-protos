@@ -4,6 +4,7 @@ package scylla.apps.v1;
 
 import "google/protobuf/timestamp.proto";
 import "scylla/auth/v1/api_token.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 
 // An App: the machine identity of a workspace. It proves its identity with an Ed25519 key pair
@@ -53,6 +54,9 @@ message App {
   // agent has a container runtime. Empty before the first stream, and for an App that is not an
   // agent.
   repeated string automatic_labels = 16;
+  // The custom icon that the admins of the workspace gave to the App. Not set: the default
+  // icon. SetAppIcon changes it, and the App itself cannot.
+  scylla.common.v1.Icon icon = 17;
 }
 
 // How an agent fits the server.
