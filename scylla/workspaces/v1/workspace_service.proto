@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package scylla.workspaces.v1;
 
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 import "scylla/workspaces/v1/workspace.proto";
@@ -21,10 +22,11 @@ service WorkspaceService {
   // Lists the workspaces that the caller can read, oldest first: the workspaces where it has a
   // role.
   rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
-  // Changes the name, the slug, the personal token switch or the time zone of a workspace. The
-  // caller needs the permission update_workspace: for example the roles owner and admin. A slug in
-  // use gives FAILED_PRECONDITION with the reason SLUG_IN_USE. A time zone that is not an IANA
-  // name gives INVALID_ARGUMENT on time_zone.
+  // Changes the name, the slug, the personal token switch, the time zone or the icon of a
+  // workspace. The caller needs the permission update_workspace: for example the roles owner and
+  // admin. A slug in use gives FAILED_PRECONDITION with the reason SLUG_IN_USE. A time zone that
+  // is not an IANA name gives INVALID_ARGUMENT on time_zone. A bad icon gives INVALID_ARGUMENT
+  // on icon.
   rpc UpdateWorkspace(UpdateWorkspaceRequest) returns (UpdateWorkspaceResponse);
   // Deletes a workspace, with its owners and its invitations. The caller needs the permission
   // delete_workspace, else PERMISSION_DENIED: for example the role owner. A workspace with a
@@ -91,6 +93,10 @@ message UpdateWorkspaceRequest {
   optional bool personal_tokens_enabled = 4;
   // The new time zone: an IANA name, for example Europe/Paris. The name is case sensitive.
   optional string time_zone = 5;
+  // The new icon. Not set: the icon does not change. Set with no kind: the workspace takes the
+  // default icon again. A new image replaces the old image of the workspace, which the server
+  // deletes.
+  scylla.common.v1.IconChange icon = 6;
 }
 
 // The output of UpdateWorkspace.

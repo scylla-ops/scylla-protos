@@ -18,11 +18,11 @@ service ProjectGroupService {
   rpc ListProjectGroups(ListProjectGroupsRequest) returns (ListProjectGroupsResponse);
   // Creates a group with no project, after the other groups of its workspace. The caller needs
   // the permission create_project_group: the owners, the admins and the members of the
-  // workspace. A bad name gives INVALID_ARGUMENT.
+  // workspace. A bad name or a bad color gives INVALID_ARGUMENT.
   rpc CreateProjectGroup(CreateProjectGroupRequest) returns (CreateProjectGroupResponse);
-  // Changes the name of a group, or its place in the order of the groups. The caller needs the
-  // permission update_project_group: the owners, the admins and the members of the workspace.
-  // The last change wins. A bad name gives INVALID_ARGUMENT.
+  // Changes the name or the color of a group, or its place in the order of the groups. The caller
+  // needs the permission update_project_group: the owners, the admins and the members of the
+  // workspace. The last change wins. A bad name or a bad color gives INVALID_ARGUMENT.
   rpc UpdateProjectGroup(UpdateProjectGroupRequest) returns (UpdateProjectGroupResponse);
   // Deletes a group. Its projects go out of all groups: they come after the other projects with
   // no group, in their order. The caller needs the permission delete_project_group: the owners,
@@ -58,6 +58,9 @@ message CreateProjectGroupRequest {
   scylla.common.v1.Id workspace_id = 1;
   // The display name, 1 to 100 characters after trim, on one line.
   string name = 2;
+  // The color of the folder: the name of a color of the web app, or "#rrggbb" in any case. The
+  // server keeps a "#rrggbb" color in lower case. Empty: the default color.
+  string color = 3;
 }
 
 // The output of CreateProjectGroup.
@@ -75,6 +78,9 @@ message UpdateProjectGroupRequest {
   // The new place of the group in the order of the groups of its workspace, from 0. A place
   // after the last group puts the group last.
   optional uint32 position = 3;
+  // The new color of the folder: the name of a color of the web app, or "#rrggbb" in any case.
+  // An empty text gives the default color again.
+  optional string color = 4;
 }
 
 // The output of UpdateProjectGroup.

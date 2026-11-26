@@ -43,6 +43,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   `ListProjectsRequest` has `section` (`ProjectSection`: the projects of one group, or the projects
   with no group) and `project_ids` (at most 100 projects). The order `PROJECT_ORDER_POSITION` uses
   the order of the groups and the place of each project in its group.
+- Workspace icons and group folder colors. `Workspace.icon` gives the icon of a workspace
+  (`scylla.common.v1.Icon`), and `UpdateWorkspaceRequest.icon` changes it. `ProjectGroup.color`
+  gives the folder color of a group (a theme color or `#rrggbb`, empty for the default folder);
+  `CreateProjectGroupRequest.color` and `UpdateProjectGroupRequest.color` set it.
 
 ## [0.7.2] - 2026-11-25
 
