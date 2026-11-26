@@ -51,6 +51,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   initials) and `icon` (the custom icon of an app), so that a list of role holders shows each actor
   as everywhere else.
 
+### Fixed
+
+- WorkspaceService: the new RPC `ListAllWorkspaces` (search, order, `others_only`, page, total),
+  `WorkspaceDetails` and `WorkspaceOwner`, `details` in `GetWorkspaceResponse` and
+  `ListWorkspacesResponse`, and `only_with_role` in `ListWorkspacesRequest`. Only new fields.
+
 ## [0.7.2] - 2026-11-25
 
 ### Added
