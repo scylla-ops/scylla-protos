@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package scylla.projects.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/id.proto";
+
+// A group of projects in a workspace. The members of the workspace share the groups, their order
+// and the order of the projects in each group.
+message ProjectGroup {
+  // The id of the group.
+  scylla.common.v1.Id id = 1;
+  // The workspace of the group.
+  scylla.common.v1.Id workspace_id = 2;
+  // The actor that created the group.
+  scylla.common.v1.Id created_by = 3;
+  // The display name, 1 to 100 characters, trimmed, on one line. Two groups can have the same
+  // name.
+  string name = 4;
+  // The creation time. The server sets it.
+  google.protobuf.Timestamp created_at = 5;
+}

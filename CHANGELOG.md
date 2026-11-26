@@ -26,6 +26,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   sets the color (an empty text gives the main color). `App.icon` and `Member.icon` give the icon of
   an App. `AppService.SetAppIcon` sets a glyph with its color, an image, or the default icon (route
   permission `set_app_icon`).
+- Groups of projects in a workspace. `Project.group_id` gives the group of a project.
+  `ProjectGroupService` lists, creates, renames, reorders and deletes the groups of a workspace
+  (`ListProjectGroups`, `CreateProjectGroup`, `UpdateProjectGroup`, `DeleteProjectGroup`), and
+  `MoveProject` puts a project in a group or in no group, before another project or last.
+  `ListProjectsRequest` has `section` (`ProjectSection`: the projects of one group, or the projects
+  with no group) and `project_ids` (at most 100 projects). The order `PROJECT_ORDER_POSITION` uses
+  the order of the groups and the place of each project in its group.
 
 ## [0.7.2] - 2026-11-25
 

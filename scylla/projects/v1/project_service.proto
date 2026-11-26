@@ -63,8 +63,8 @@ message ListProjectsRequest {
   // Only the projects of this workspace that the caller can see. Not set means all the
   // projects that the caller can see.
   scylla.common.v1.Id workspace_id = 1;
-  // The page to return. The token of the next page is valid only with the same query, order
-  // and health.
+  // The page to return. The token of the next page is valid only with the same query, order,
+  // health, section and project ids.
   scylla.common.v1.PageRequest page = 2;
   // Only the projects with this text in their name, in their description, in the full name of
   // their linked repository or in the name of one of their pipelines, with no difference
@@ -75,6 +75,17 @@ message ListProjectsRequest {
   ProjectOrder order = 4;
   // Only the projects of this health.
   ProjectHealth health = 5;
+  // Only the projects of one section of the projects page. Not set: each project.
+  ProjectSection section = 6;
+  // Only these projects, at most 100. Empty: each project. More than 100 give INVALID_ARGUMENT.
+  repeated scylla.common.v1.Id project_ids = 7;
+}
+
+// A section of the projects page: the projects of one group, or the projects with no group.
+message ProjectSection {
+  // The group. A group of another workspace gives no project. Not set: the projects with no
+  // group.
+  scylla.common.v1.Id group_id = 1;
 }
 
 // The output of ListProjects.
@@ -105,8 +116,9 @@ message ProjectCounts {
 enum ProjectOrder {
   // PROJECT_ORDER_POSITION.
   PROJECT_ORDER_UNSPECIFIED = 0;
-  // The order that the members of the workspace set. The projects with no place come after
-  // them, oldest first.
+  // The order that the members of the workspace set with ProjectGroupService: the groups in
+  // their order, then the projects with no group, and in each the place of each project. The
+  // projects with no place come after the others of their group, oldest first.
   PROJECT_ORDER_POSITION = 1;
   // The name, from A to Z, with no difference between upper and lower case.
   PROJECT_ORDER_NAME = 2;
