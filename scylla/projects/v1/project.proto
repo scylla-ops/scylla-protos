@@ -3,6 +3,7 @@ syntax = "proto3";
 package scylla.projects.v1;
 
 import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 
 // A project. It is in one workspace.
@@ -19,4 +20,6 @@ message Project {
   string description = 5;
   // The creation time. The server sets it.
   google.protobuf.Timestamp created_at = 6;
+  // The custom icon of the project. Not set means the default icon. UpdateProject changes it.
+  scylla.common.v1.Icon icon = 7;
 }

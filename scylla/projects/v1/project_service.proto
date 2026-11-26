@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package scylla.projects.v1;
 
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 import "scylla/projects/v1/project.proto";
@@ -17,10 +18,11 @@ service ProjectService {
   // Lists the projects that the caller can see, oldest first: the projects of the workspaces
   // that it owns or where it has a role, and the projects shared with it.
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
-  // Changes the name or the description of a project. The caller needs the permission
+  // Changes the name, the description or the icon of a project. The caller needs the permission
   // update_project: the owners, the admins and the members of its workspace, and the admins
   // and the editors of the project. The last change wins. An unknown project gives
-  // PERMISSION_DENIED, as a refusal does.
+  // PERMISSION_DENIED, as a refusal does. A bad name, description or icon gives
+  // INVALID_ARGUMENT.
   rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
   // Deletes a project with its secrets.
   rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
@@ -80,6 +82,10 @@ message UpdateProjectRequest {
   // The new description, at most 1024 characters after trim. An empty text removes the
   // description.
   optional string description = 3;
+  // The new icon. Not set: the icon does not change. Set with no kind: the project takes the
+  // default icon again. A new image replaces the old image of the project, which the server
+  // deletes.
+  scylla.common.v1.IconChange icon = 4;
 }
 
 // The output of UpdateProject.

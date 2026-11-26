@@ -7,6 +7,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 
 ## [Unreleased]
 
+### Added
+
+- Custom project icons. `Project.icon` gives the icon of a project (`scylla.common.v1.Icon`: a glyph
+  of the web icon set with its color, or the id of an uploaded image). `UpdateProjectRequest.icon`
+  (`IconChange`) sets a glyph, sends the bytes of a PNG, JPEG or WebP image, or resets the icon to
+  the default when it has no kind.
+
 ## [0.7.2] - 2026-11-25
 
 ### Added
