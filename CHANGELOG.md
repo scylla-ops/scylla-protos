@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 
 ### Added
 
+- The mail relay of an instance, set at runtime. `MailSettingsService` (`scylla.platform.v1`):
+  `GetMailSettings` gives the relay of the instance (`MailRelay`: host, port, `MailSecurity` TLS,
+  STARTTLS or none, user name, `password_set`, sender address and name) and `default_host`, the
+  host of the default relay of the server (`SCYLLA_SMTP_URL`). `UpdateMailSettings` sets the whole
+  relay. The password is write-only: an unset `password` keeps the saved one, and a new password on
+  a server with no key of the secrets gives `SECRET_KEY_MISSING`. `ResetMailSettings` removes the
+  relay, and the server uses its default again. `SendTestMail` sends a test mail at once and gives
+  the answer of the relay or its error in `SendTestMailResponse` (`MAIL_RELAY_MISSING` when the
+  server has no relay). The route permissions are `get_mail_settings`, `update_mail_settings`,
+  `reset_mail_settings` and `send_test_mail`.
 - Custom project icons. `Project.icon` gives the icon of a project (`scylla.common.v1.Icon`: a glyph
   of the web icon set with its color, or the id of an uploaded image). `UpdateProjectRequest.icon`
   (`IconChange`) sets a glyph, sends the bytes of a PNG, JPEG or WebP image, or resets the icon to
