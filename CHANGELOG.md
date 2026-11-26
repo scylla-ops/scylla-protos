@@ -56,6 +56,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 - WorkspaceService: the new RPC `ListAllWorkspaces` (search, order, `others_only`, page, total),
   `WorkspaceDetails` and `WorkspaceOwner`, `details` in `GetWorkspaceResponse` and
   `ListWorkspacesResponse`, and `only_with_role` in `ListWorkspacesRequest`. Only new fields.
+- A notification gives the icon of its workspace and the look of the actor:
+  `Notification.workspace_icon`, `actor_kind`, `actor_avatar` and `actor_icon`. A row of `ListUsers`
+  gives each workspace with its icon and its owner (`UserEntry.workspace_details`, `UserWorkspace`).
 
 ## [0.7.2] - 2026-11-25
 
