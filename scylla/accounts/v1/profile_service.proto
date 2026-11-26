@@ -4,6 +4,7 @@ package scylla.accounts.v1;
 
 import "google/protobuf/timestamp.proto";
 import "scylla/accounts/v1/user.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 
 // The account of the caller: its profile, its email, its password, its identities and its
@@ -13,8 +14,8 @@ service ProfileService {
   // acceptance of the terms of service.
   rpc GetMe(GetMeRequest) returns (GetMeResponse);
   // Changes the display name, the handle or the avatar. A handle of another user gives
-  // FAILED_PRECONDITION with the reason HANDLE_IN_USE. A bad name, handle, image or color gives
-  // INVALID_ARGUMENT.
+  // FAILED_PRECONDITION with the reason HANDLE_IN_USE. A bad name, handle, image, color or glyph
+  // avatar gives INVALID_ARGUMENT.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Deletes the account. It needs the current password if the user has one. A workspace where
   // the user is the only owner is deleted with the account if it is empty. Else the request
@@ -102,6 +103,10 @@ message UpdateProfileRequest {
   // letters, digits or dashes, with a letter first), or "#rrggbb". An empty text gives the
   // default color.
   optional string avatar_color = 4;
+  // A new glyph avatar: the server draws it as an SVG image, which replaces the old image as a new
+  // avatar_image does. The avatar keeps its options for the editor. It cannot come with
+  // avatar_image. Bad options give INVALID_ARGUMENT.
+  scylla.common.v1.GlyphAvatar avatar_glyph = 5;
 }
 
 // The output of UpdateProfile.

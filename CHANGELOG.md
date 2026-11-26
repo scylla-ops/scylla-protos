@@ -50,6 +50,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 - `RoleHolderEntry` has `avatar` (the avatar that a user chose: a photo or the color of the
   initials) and `icon` (the custom icon of an app), so that a list of role holders shows each actor
   as everywhere else.
+- Glyph avatars (the DiceBear style "Glyphs"). `scylla.common.v1.GlyphAvatar` holds the options of
+  the avatar: the shape (`variant01` to `variant35`, or `scylla`, the Scylla head), the paint of the
+  glyph and of the background (colors, solid, linear or radial fill, angle), flip, rotation and
+  size. `UpdateProfileRequest.avatar_glyph` sets the avatar of a person, `IconChange.glyph_avatar`
+  sets the icon of an App, and `Avatar.glyph_avatar` and `Icon.glyph_avatar` give the options back
+  for a new edit.
 
 ### Fixed
 

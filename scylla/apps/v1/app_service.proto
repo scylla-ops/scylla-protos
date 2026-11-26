@@ -65,10 +65,11 @@ service AppService {
   // set_app_labels: the admins of the workspace. The creator of the App does not get it, so the
   // machine of an agent cannot choose the jobs and the secrets that it gets.
   rpc SetAppLabels(SetAppLabelsRequest) returns (SetAppLabelsResponse);
-  // Changes the icon of an App: a glyph with a color, an uploaded image, or the default icon. The
-  // route permission is set_app_icon: the admins of the workspace. The creator of the App does
-  // not get it. A bad glyph, color or image gives INVALID_ARGUMENT. A new image replaces the old
-  // image of the App, which the server deletes.
+  // Changes the icon of an App: a glyph with a color, an uploaded image, a glyph avatar that the
+  // server draws, or the default icon. The route permission is set_app_icon: the admins of the
+  // workspace. The creator of the App does not get it. A bad glyph, color, image or glyph avatar
+  // gives INVALID_ARGUMENT. A new image replaces the old image of the App, which the server
+  // deletes.
   rpc SetAppIcon(SetAppIconRequest) returns (SetAppIconResponse);
 }
 
