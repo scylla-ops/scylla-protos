@@ -3,6 +3,7 @@ syntax = "proto3";
 package scylla.workspaces.v1;
 
 import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 
 // A workspace: the top-level container of the projects and the agents.
@@ -22,4 +23,7 @@ message Workspace {
   // The time zone of the workspace, for its days and its hours: an IANA name, for example
   // Europe/Paris. A new workspace has UTC.
   string time_zone = 6;
+  // The custom icon of the workspace. Not set means the default icon. UpdateWorkspace changes
+  // it.
+  scylla.common.v1.Icon icon = 7;
 }

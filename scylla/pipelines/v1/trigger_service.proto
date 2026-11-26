@@ -231,6 +231,9 @@ message ListWorkspaceTriggersRequest {
   google.protobuf.Timestamp since = 8;
   // The page to return.
   scylla.common.v1.PageRequest page = 9;
+  // Only the triggers whose name, pipeline name or project name contains this text, in any case.
+  // Empty gives each trigger.
+  string query = 10;
 }
 
 // The output of ListWorkspaceTriggers.

@@ -19,4 +19,8 @@ message ProjectGroup {
   string name = 4;
   // The creation time. The server sets it.
   google.protobuf.Timestamp created_at = 5;
+  // The color of the folder of the group: the name of a color of the web app (1 to 32 lower case
+  // letters, digits or dashes, with a letter first, for example "chart-2"), or "#rrggbb" in lower
+  // case. Empty means the default color.
+  string color = 6;
 }

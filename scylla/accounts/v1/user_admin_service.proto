@@ -4,6 +4,7 @@ package scylla.accounts.v1;
 
 import "google/protobuf/timestamp.proto";
 import "scylla/accounts/v1/user.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 
@@ -74,6 +75,23 @@ message UserEntry {
   repeated string workspaces = 3;
   // The time of the last sign-in. Not set if the user never signed in.
   google.protobuf.Timestamp last_sign_in_at = 4;
+  // The workspaces of workspaces, in the same order, with their icons and their owners.
+  repeated UserWorkspace workspace_details = 5;
+}
+
+// A workspace that a user of the list owns or has a role in.
+message UserWorkspace {
+  // The workspace.
+  scylla.common.v1.Id workspace_id = 1;
+  // The name of the workspace.
+  string name = 2;
+  // The icon of the workspace. Not set if the workspace has the default icon.
+  scylla.common.v1.Icon icon = 3;
+  // True if the user is an owner of the workspace.
+  bool owner = 4;
+  // The display name of the first owner of the workspace, if the user is not an owner. Empty if
+  // the user is an owner, or if the workspace has no owner.
+  string owner_name = 5;
 }
 
 // The output of ListUsers.
