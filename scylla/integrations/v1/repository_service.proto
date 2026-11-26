@@ -16,6 +16,11 @@ service RepositoryService {
   // Reads the link of a project. A project with no link gives an answer with no link. The route
   // permission is get_repository_link: the readers of the project.
   rpc GetRepositoryLink(GetRepositoryLinkRequest) returns (GetRepositoryLinkResponse);
+  // Lists the links of the projects of a workspace that the caller can read, in one call. A
+  // project with no link, a project of another workspace and a project that the caller cannot
+  // read have no link in the answer: a filter causes no refusal. More than 100 project ids give
+  // INVALID_ARGUMENT. The route permission is list_repository_links: the readers of the project.
+  rpc ListRepositoryLinks(ListRepositoryLinksRequest) returns (ListRepositoryLinksResponse);
   // Links a project to a repository. On GitLab, the server also makes the webhook of the
   // project when the service account is Maintainer or more. A Developer gets the polling mode
   // with the reason ROLE_TOO_LOW, and the link stays active. A project with a link gives
@@ -57,6 +62,20 @@ message GetRepositoryLinkRequest {
 message GetRepositoryLinkResponse {
   // The link. Not set when the project has no link.
   RepositoryLink link = 1;
+}
+
+// The input of ListRepositoryLinks.
+message ListRepositoryLinksRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // Only the links of these projects, at most 100. Empty: each project of the workspace.
+  repeated scylla.common.v1.Id project_ids = 2;
+}
+
+// The output of ListRepositoryLinks.
+message ListRepositoryLinksResponse {
+  // The links, one for each linked project, oldest project first.
+  repeated RepositoryLink links = 1;
 }
 
 // The input of LinkRepository.

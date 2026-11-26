@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package scylla.common.v1;
+
+import "scylla/common/v1/id.proto";
+
+// A glyph of the icon set of the web app, with a color.
+message IconGlyph {
+  // The name of the glyph in the icon set of the web app, for example "rocket": 1 to 64 lower
+  // case letters, digits or dashes, with a letter or a digit first. The server does not know the
+  // icon set: a client shows its default glyph for a name that it does not know.
+  string name = 1;
+  // The color of the glyph: the name of a color of the web app (1 to 32 lower case letters,
+  // digits or dashes, with a letter first, for example "blue"), or "#rrggbb". The server keeps a
+  // "#rrggbb" color in lower case. Empty means the default color.
+  string color = 2;
+}
+
+// The custom icon of a resource: a glyph with a color, or an uploaded image. A resource with no
+// custom icon shows its default icon.
+message Icon {
+  // The kind of the icon. One is always set.
+  oneof kind {
+    // A glyph of the icon set with a color.
+    IconGlyph glyph = 1;
+    // The id of an uploaded image. The route GET /images/{id} of the server gives it, as a
+    // square PNG of 256 pixels with the content type image/png. The image of an id never
+    // changes: a new upload gives a new id.
+    Id image_id = 2;
+  }
+}
+
+// A change of the custom icon of a resource. With no kind set, the resource takes its default
+// icon again.
+message IconChange {
+  // The new icon. Not set removes the custom icon.
+  oneof kind {
+    // A glyph of the icon set with a color.
+    IconGlyph glyph = 1;
+    // A new image: a PNG, JPEG or WebP file of at most 1048576 bytes (1 MiB), and at most 4096
+    // pixels on each side. The server makes it a square PNG of 256 pixels: it cuts the center
+    // of the longer side. Another format (SVG too), a larger file or a file that it cannot read
+    // gives INVALID_ARGUMENT.
+    bytes image = 2;
+  }
+}
+
+// The avatar of a person: an uploaded image, and the color of the initials. With no image, the
+// clients show the initials of the person on the color.
+message Avatar {
+  // The id of the uploaded image. Not set: the person has no image. The route GET /images/{id}
+  // of the server gives it, as a square PNG of 256 pixels with the content type image/png.
+  Id image_id = 1;
+  // The color of the initials: the name of a color of the web app (1 to 32 lower case letters,
+  // digits or dashes, with a letter first, for example "blue"), or "#rrggbb" in lower case.
+  // Empty means the default color.
+  string color = 2;
+}

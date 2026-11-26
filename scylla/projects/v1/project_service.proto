@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package scylla.projects.v1;
 
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 import "scylla/projects/v1/project.proto";
@@ -14,13 +15,16 @@ service ProjectService {
   rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
   // Reads one project. An unknown project gives PERMISSION_DENIED, as a refusal does.
   rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
-  // Lists the projects that the caller can see, oldest first: the projects of the workspaces
-  // that it owns or where it has a role, and the projects shared with it.
+  // Lists the projects that the caller can see: the projects of the workspaces that it owns or
+  // where it has a role, and the projects shared with it. The request can search them, keep only
+  // the projects of one health and sort them. A search text of more than 100 characters, or a
+  // value of order or health that the server does not know, gives INVALID_ARGUMENT.
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
-  // Changes the name or the description of a project. The caller needs the permission
+  // Changes the name, the description or the icon of a project. The caller needs the permission
   // update_project: the owners, the admins and the members of its workspace, and the admins
   // and the editors of the project. The last change wins. An unknown project gives
-  // PERMISSION_DENIED, as a refusal does.
+  // PERMISSION_DENIED, as a refusal does. A bad name, description or icon gives
+  // INVALID_ARGUMENT.
   rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
   // Deletes a project with its secrets.
   rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
@@ -59,16 +63,82 @@ message ListProjectsRequest {
   // Only the projects of this workspace that the caller can see. Not set means all the
   // projects that the caller can see.
   scylla.common.v1.Id workspace_id = 1;
-  // The page to return.
+  // The page to return. The token of the next page is valid only with the same query, order,
+  // health, section and project ids.
   scylla.common.v1.PageRequest page = 2;
+  // Only the projects with this text in their name, in their description, in the full name of
+  // their linked repository or in the name of one of their pipelines, with no difference
+  // between upper and lower case. The server trims it. Empty gives each project. At most 100
+  // characters.
+  string query = 3;
+  // The order of the projects.
+  ProjectOrder order = 4;
+  // Only the projects of this health.
+  ProjectHealth health = 5;
+  // Only the projects of one section of the projects page. Not set: each project.
+  ProjectSection section = 6;
+  // Only these projects, at most 100. Empty: each project. More than 100 give INVALID_ARGUMENT.
+  repeated scylla.common.v1.Id project_ids = 7;
+}
+
+// A section of the projects page: the projects of one group, or the projects with no group.
+message ProjectSection {
+  // The group. A group of another workspace gives no project. Not set: the projects with no
+  // group.
+  scylla.common.v1.Id group_id = 1;
 }
 
 // The output of ListProjects.
 message ListProjectsResponse {
-  // The projects of the page, oldest first.
+  // The projects of the page, in the order of the request.
   repeated Project projects = 1;
   // How to get the next page.
   scylla.common.v1.PageResponse page = 2;
+  // The counts of the projects that the query keeps, on all the pages. The health of the
+  // request does not change them.
+  ProjectCounts counts = 3;
+}
+
+// The counts of a list of projects.
+message ProjectCounts {
+  // The number of projects.
+  uint32 total = 1;
+  // The number of projects with at least one failing pipeline: a pipeline whose last ended job
+  // did not complete, as PipelineSummary.last_ended_status tells.
+  uint32 failed = 2;
+  // The number of projects with a job that runs, or waits for an agent or for an approval.
+  uint32 running = 3;
+  // The number of pipelines of these projects. An archived pipeline from a file does not count.
+  uint32 pipelines = 4;
+}
+
+// The order of a list of projects.
+enum ProjectOrder {
+  // PROJECT_ORDER_POSITION.
+  PROJECT_ORDER_UNSPECIFIED = 0;
+  // The order that the members of the workspace set with ProjectGroupService: the groups in
+  // their order, then the projects with no group, and in each the place of each project. The
+  // projects with no place come after the others of their group, oldest first.
+  PROJECT_ORDER_POSITION = 1;
+  // The name, from A to Z, with no difference between upper and lower case.
+  PROJECT_ORDER_NAME = 2;
+  // The project with the newest job first. A project with no job comes last.
+  PROJECT_ORDER_LAST_JOB = 3;
+  // The projects with a failing pipeline first, then the projects with a running job, then the
+  // others. In each group, the name.
+  PROJECT_ORDER_FAILED_FIRST = 4;
+}
+
+// A filter of a list of projects by health.
+enum ProjectHealth {
+  // PROJECT_HEALTH_ALL.
+  PROJECT_HEALTH_UNSPECIFIED = 0;
+  // Each project.
+  PROJECT_HEALTH_ALL = 1;
+  // Only the projects with at least one failing pipeline.
+  PROJECT_HEALTH_FAILED = 2;
+  // Only the projects with a job that runs, or waits for an agent or for an approval.
+  PROJECT_HEALTH_RUNNING = 3;
 }
 
 // The input of UpdateProject. A field that is not set does not change.
@@ -80,6 +150,10 @@ message UpdateProjectRequest {
   // The new description, at most 1024 characters after trim. An empty text removes the
   // description.
   optional string description = 3;
+  // The new icon. Not set: the icon does not change. Set with no kind: the project takes the
+  // default icon again. A new image replaces the old image of the project, which the server
+  // deletes.
+  scylla.common.v1.IconChange icon = 4;
 }
 
 // The output of UpdateProject.

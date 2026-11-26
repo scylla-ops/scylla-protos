@@ -7,6 +7,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 
 ## [Unreleased]
 
+### Added
+
+- Custom project icons. `Project.icon` gives the icon of a project (`scylla.common.v1.Icon`: a glyph
+  of the web icon set with its color, or the id of an uploaded image). `UpdateProjectRequest.icon`
+  (`IconChange`) sets a glyph, sends the bytes of a PNG, JPEG or WebP image, or resets the icon to
+  the default when it has no kind.
+- Search, order and health for a list of projects. `ListProjectsRequest` has `query` (the name, the
+  description, the repository and the pipeline names), `order` (`ProjectOrder`: position, name, last
+  job, failed first) and `health` (`ProjectHealth`: all, failed, running).
+  `ListProjectsResponse.counts` (`ProjectCounts`) gives the count of the projects that the search
+  finds, of the failing and the running ones, and of their pipelines.
+  `RepositoryService.ListRepositoryLinks` gives the repository links of a workspace, or of at most
+  100 projects, in one call (route permission `list_repository_links`).
+- A photo for a user and an icon for an App. `User.avatar` and `Member.avatar`
+  (`scylla.common.v1.Avatar`) give the uploaded image of a user or the color of the initials.
+  `UpdateProfileRequest.avatar_image` sets the image (empty bytes remove it), and `avatar_color`
+  sets the color (an empty text gives the main color). `App.icon` and `Member.icon` give the icon of
+  an App. `AppService.SetAppIcon` sets a glyph with its color, an image, or the default icon (route
+  permission `set_app_icon`).
+- Groups of projects in a workspace. `Project.group_id` gives the group of a project.
+  `ProjectGroupService` lists, creates, renames, reorders and deletes the groups of a workspace
+  (`ListProjectGroups`, `CreateProjectGroup`, `UpdateProjectGroup`, `DeleteProjectGroup`), and
+  `MoveProject` puts a project in a group or in no group, before another project or last.
+  `ListProjectsRequest` has `section` (`ProjectSection`: the projects of one group, or the projects
+  with no group) and `project_ids` (at most 100 projects). The order `PROJECT_ORDER_POSITION` uses
+  the order of the groups and the place of each project in its group.
+
 ## [0.7.2] - 2026-11-25
 
 ### Added

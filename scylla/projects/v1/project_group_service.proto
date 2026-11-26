@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package scylla.projects.v1;
+
+import "scylla/common/v1/id.proto";
+import "scylla/common/v1/page.proto";
+import "scylla/projects/v1/project.proto";
+import "scylla/projects/v1/project_group.proto";
+
+// Creates, changes, deletes and lists the groups of projects of a workspace, and moves a project
+// to a group and to a place. The members of the workspace share the groups and the order of the
+// projects: ListProjects with the order PROJECT_ORDER_POSITION gives this order. Each RPC needs an
+// authenticated actor, else UNAUTHENTICATED. An unknown workspace, group or project gives
+// PERMISSION_DENIED, as a refusal does.
+service ProjectGroupService {
+  // Lists the groups of a workspace in their order. The caller needs the permission
+  // list_project_groups: the readers of the projects of the workspace.
+  rpc ListProjectGroups(ListProjectGroupsRequest) returns (ListProjectGroupsResponse);
+  // Creates a group with no project, after the other groups of its workspace. The caller needs
+  // the permission create_project_group: the owners, the admins and the members of the
+  // workspace. A bad name gives INVALID_ARGUMENT.
+  rpc CreateProjectGroup(CreateProjectGroupRequest) returns (CreateProjectGroupResponse);
+  // Changes the name of a group, or its place in the order of the groups. The caller needs the
+  // permission update_project_group: the owners, the admins and the members of the workspace.
+  // The last change wins. A bad name gives INVALID_ARGUMENT.
+  rpc UpdateProjectGroup(UpdateProjectGroupRequest) returns (UpdateProjectGroupResponse);
+  // Deletes a group. Its projects go out of all groups: they come after the other projects with
+  // no group, in their order. The caller needs the permission delete_project_group: the owners,
+  // the admins and the members of the workspace.
+  rpc DeleteProjectGroup(DeleteProjectGroupRequest) returns (DeleteProjectGroupResponse);
+  // Moves a project to a group, or out of all groups, and to a place there: before another
+  // project of that group, or last. The caller needs the permission move_project: the owners,
+  // the admins and the members of the workspace, and the admins and the editors of the project.
+  // A group of another workspace, or the project itself as the project to come before, gives
+  // INVALID_ARGUMENT. A project to come before that is not in the group puts the project last.
+  rpc MoveProject(MoveProjectRequest) returns (MoveProjectResponse);
+}
+
+// The input of ListProjectGroups.
+message ListProjectGroupsRequest {
+  // The workspace. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The page to return.
+  scylla.common.v1.PageRequest page = 2;
+}
+
+// The output of ListProjectGroups.
+message ListProjectGroupsResponse {
+  // The groups of the page, in their order.
+  repeated ProjectGroup groups = 1;
+  // How to get the next page.
+  scylla.common.v1.PageResponse page = 2;
+}
+
+// The input of CreateProjectGroup.
+message CreateProjectGroupRequest {
+  // The workspace of the new group. Required.
+  scylla.common.v1.Id workspace_id = 1;
+  // The display name, 1 to 100 characters after trim, on one line.
+  string name = 2;
+}
+
+// The output of CreateProjectGroup.
+message CreateProjectGroupResponse {
+  // The created group.
+  ProjectGroup group = 1;
+}
+
+// The input of UpdateProjectGroup. A field that is not set does not change.
+message UpdateProjectGroupRequest {
+  // The group. Required.
+  scylla.common.v1.Id group_id = 1;
+  // The new display name, 1 to 100 characters after trim, on one line.
+  optional string name = 2;
+  // The new place of the group in the order of the groups of its workspace, from 0. A place
+  // after the last group puts the group last.
+  optional uint32 position = 3;
+}
+
+// The output of UpdateProjectGroup.
+message UpdateProjectGroupResponse {
+  // The group after the change.
+  ProjectGroup group = 1;
+}
+
+// The input of DeleteProjectGroup.
+message DeleteProjectGroupRequest {
+  // The group to delete. Required.
+  scylla.common.v1.Id group_id = 1;
+}
+
+// The output of DeleteProjectGroup. It is empty, so a later field does not change the RPC.
+message DeleteProjectGroupResponse {}
+
+// The input of MoveProject.
+message MoveProjectRequest {
+  // The project to move. Required.
+  scylla.common.v1.Id project_id = 1;
+  // The group of the project after the move, in the workspace of the project. Not set: no group.
+  scylla.common.v1.Id group_id = 2;
+  // The project that comes just after the moved project. Not set: the moved project goes last.
+  scylla.common.v1.Id before_project_id = 3;
+}
+
+// The output of MoveProject.
+message MoveProjectResponse {
+  // The project after the move.
+  Project project = 1;
+}
