@@ -5,6 +5,7 @@ package scylla.apps.v1;
 import "google/protobuf/timestamp.proto";
 import "scylla/apps/v1/app.proto";
 import "scylla/auth/v1/api_token.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 import "scylla/common/v1/page.proto";
 
@@ -64,6 +65,11 @@ service AppService {
   // set_app_labels: the admins of the workspace. The creator of the App does not get it, so the
   // machine of an agent cannot choose the jobs and the secrets that it gets.
   rpc SetAppLabels(SetAppLabelsRequest) returns (SetAppLabelsResponse);
+  // Changes the icon of an App: a glyph with a color, an uploaded image, or the default icon. The
+  // route permission is set_app_icon: the admins of the workspace. The creator of the App does
+  // not get it. A bad glyph, color or image gives INVALID_ARGUMENT. A new image replaces the old
+  // image of the App, which the server deletes.
+  rpc SetAppIcon(SetAppIconRequest) returns (SetAppIconResponse);
 }
 
 // The input of CreateApp.
@@ -309,6 +315,20 @@ message SetAppLabelsRequest {
 
 // The output of SetAppLabels.
 message SetAppLabelsResponse {
+  // The App after the change.
+  App app = 1;
+}
+
+// The input of SetAppIcon.
+message SetAppIconRequest {
+  // The App. Required.
+  scylla.common.v1.Id app_id = 1;
+  // The new icon. Not set, or set with no kind: the App takes the default icon again.
+  scylla.common.v1.IconChange icon = 2;
+}
+
+// The output of SetAppIcon.
+message SetAppIconResponse {
   // The App after the change.
   App app = 1;
 }

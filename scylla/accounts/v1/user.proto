@@ -3,6 +3,7 @@ syntax = "proto3";
 package scylla.accounts.v1;
 
 import "google/protobuf/timestamp.proto";
+import "scylla/common/v1/icon.proto";
 import "scylla/common/v1/id.proto";
 
 // A user.
@@ -21,6 +22,10 @@ message User {
   bool instance_admin = 6;
   // The creation time.
   google.protobuf.Timestamp created_at = 7;
+  // The avatar that the user chose: an image, or a color for the initials. Not set: the default
+  // avatar, the initials on the main color. Only the user changes it, with
+  // ProfileService.UpdateProfile.
+  scylla.common.v1.Avatar avatar = 8;
 }
 
 // A session: one sign-in on one device.
