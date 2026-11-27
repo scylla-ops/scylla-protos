@@ -18,7 +18,12 @@ scylla/<domain>/v1/<file>.proto   ->   package scylla.<domain>.v1;
 Imports use the same paths, for example
 `import "scylla/common/v1/id.proto";`.
 
-Each package has a version suffix. Scylla has no client of an old version yet (decision 39 of `scylla-ce`, "No compatibility code"): a change removes a field or an RPC with no `reserved` line and no deprecated mark, and the fields of a message have the numbers 1 to n.
+Each package has a version suffix. From 0.7, a change is additive (decision
+115 of `scylla-ce`). A field number never changes its type or its meaning,
+and a change never uses a number again. A replaced field or RPC stays,
+marked deprecated, until a later minor version. Then its number and its
+name are reserved. Gaps in the field numbers are normal. `AGENT.md` gives
+the steps and the `buf breaking` check.
 
 `google/rpc/` holds a subset of googleapis (`status.proto` and
 `error_details.proto`, with the same field numbers). The server sends a
