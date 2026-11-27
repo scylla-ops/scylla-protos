@@ -56,6 +56,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   size. `UpdateProfileRequest.avatar_glyph` sets the avatar of a person, `IconChange.glyph_avatar`
   sets the icon of an App, and `Avatar.glyph_avatar` and `Icon.glyph_avatar` give the options back
   for a new edit.
+- The photo of a provider as the avatar. `ProfileService.ImportAvatar` downloads again the photo of
+  a linked identity at its provider (the GitHub avatar, the OIDC claim `picture`) and makes it the
+  image of the avatar of the user, in place of the current one. `Identity.has_picture` tells if the
+  provider gave a photo. An identity with no photo gives FAILED_PRECONDITION with the reason
+  `NO_PICTURE`, and a photo that the server cannot download or read gives `PICTURE_UNAVAILABLE`. The
+  server also imports the photo one time when it makes an account with a provider.
+- Search for the search bar. `JobFilter.query` keeps the jobs whose number (the last 8 characters of
+  the id), branch, tag, commit title or pipeline name contains the text.
+  `ListWorkspaceTriggersRequest.query` finds the triggers by their name, pipeline name or project
+  name. `SecretService.ListWorkspaceSecrets` gives the secrets of a workspace with no value, newest
+  first, with the name of their project (`WorkspaceSecret`), only in the projects where the caller
+  can list the secrets, and `query` searches the name and the project name (route permission
+  `list_workspace_secrets`). Only new fields and a new RPC.
 
 ### Fixed
 
