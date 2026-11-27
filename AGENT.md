@@ -70,7 +70,7 @@ a machine, a script. Thus a change is additive (decision 115 of
 |---|---|
 | `just lint` | Lint all files. |
 | `just fmt` | Format all files. This command changes the files. |
-| `buf breaking --against '.git#ref=origin/<base>'` | Compare the files with the base branch, for example `origin/v0.7.3`. No recipe and no CI run it. |
+| `buf breaking --against '.git#ref=origin/<base>'` | Compare the files with the base branch, for example `origin/main`. No recipe and no CI run it. |
 | `buf breaking --against '.git#ref=origin/<base>' --config '{"version":"v2","breaking":{"use":["WIRE_JSON"]}}'` | The same check, for the removal of a deprecated field or RPC. |
 
 Do these checks before each commit.
