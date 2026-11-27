@@ -106,10 +106,13 @@ message ProjectCounts {
   // The number of projects with at least one failing pipeline: a pipeline whose last ended job
   // did not complete, as PipelineSummary.last_ended_status tells.
   uint32 failed = 2;
-  // The number of projects with a job that runs, or waits for an agent or for an approval.
+  // The number of projects with a job that runs. Since 0.7.3, a project whose jobs only wait for
+  // an agent or for an approval counts in pending, not here.
   uint32 running = 3;
   // The number of pipelines of these projects. An archived pipeline from a file does not count.
   uint32 pipelines = 4;
+  // The number of projects with a job that waits for an agent or for an approval.
+  uint32 pending = 5;
 }
 
 // The order of a list of projects.
@@ -124,8 +127,8 @@ enum ProjectOrder {
   PROJECT_ORDER_NAME = 2;
   // The project with the newest job first. A project with no job comes last.
   PROJECT_ORDER_LAST_JOB = 3;
-  // The projects with a failing pipeline first, then the projects with a running job, then the
-  // others. In each group, the name.
+  // The projects with a failing pipeline first, then the projects with a job that runs, then
+  // the projects with a job that waits, then the others. In each group, the name.
   PROJECT_ORDER_FAILED_FIRST = 4;
 }
 
@@ -137,8 +140,11 @@ enum ProjectHealth {
   PROJECT_HEALTH_ALL = 1;
   // Only the projects with at least one failing pipeline.
   PROJECT_HEALTH_FAILED = 2;
-  // Only the projects with a job that runs, or waits for an agent or for an approval.
+  // Only the projects with a job that runs. Since 0.7.3, a project whose jobs only wait for an
+  // agent or for an approval is in PROJECT_HEALTH_PENDING, not here.
   PROJECT_HEALTH_RUNNING = 3;
+  // Only the projects with a job that waits for an agent or for an approval.
+  PROJECT_HEALTH_PENDING = 4;
 }
 
 // The input of UpdateProject. A field that is not set does not change.

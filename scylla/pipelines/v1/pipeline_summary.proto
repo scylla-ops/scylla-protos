@@ -34,8 +34,9 @@ message PipelineSummary {
   // newest by creation. The pipeline is green when it is JOB_STATUS_COMPLETED, and red for
   // another status. JOB_STATUS_UNSPECIFIED: no such job.
   JobStatus last_ended_status = 9;
-  // True when a job of the pipeline runs, or waits for an agent or for an approval.
-  bool active = 10;
+  // True when a job of the pipeline runs, or waits for an agent or for an approval. Deprecated:
+  // read live_status, which tells a job that runs from a job that waits.
+  bool active = 10 [deprecated = true];
   // The kinds of the triggers that can start a job, each kind one time, in the order of
   // TriggerKind: the enabled triggers, and the on section of a pipeline file. An archived
   // pipeline and a file pipeline whose file left the default branch have none. In a project
@@ -50,6 +51,10 @@ message PipelineSummary {
   // True when a file of the default branch took the key of this editor pipeline: it sends no
   // report. Pipeline.key_taken_at tells when.
   bool key_taken = 14;
+  // The state of the live jobs of the pipeline: JOB_STATUS_RUNNING when a job runs, else
+  // JOB_STATUS_PENDING when a job waits for an agent, else JOB_STATUS_AWAITING_APPROVAL when a
+  // job waits for an approval. JOB_STATUS_UNSPECIFIED: no job runs or waits.
+  JobStatus live_status = 15;
 }
 
 // One recent job of a pipeline.

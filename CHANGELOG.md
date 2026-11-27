@@ -70,6 +70,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   can list the secrets, and `query` searches the name and the project name (route permission
   `list_workspace_secrets`). Only new fields and a new RPC.
 
+### Changed
+
+- `PipelineSummary.live_status` (a `JobStatus`, field 15) tells if a job of the pipeline runs, waits
+  for an agent or waits for an approval. `PipelineSummary.active` keeps its meaning and is
+  deprecated: read `live_status`. `ProjectCounts.pending` and `PROJECT_HEALTH_PENDING` count and
+  filter the projects with a job that waits. `ProjectCounts.running` and `PROJECT_HEALTH_RUNNING` no
+  longer count a project whose jobs only wait for an agent or for an approval.
+
 ### Fixed
 
 - WorkspaceService: the new RPC `ListAllWorkspaces` (search, order, `others_only`, page, total),
