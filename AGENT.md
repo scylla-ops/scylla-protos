@@ -16,11 +16,38 @@ code.
   `import "scylla/common/v1/id.proto";`.
 - Do not move a file to a different directory. The backend and the web UI
   use these paths as import paths.
-- Scylla has no client of an old version yet (decision 39 of `scylla-ce`, "No compatibility code"): a change removes a field or an RPC with no `reserved` line and no deprecated mark, and the fields of a message have the numbers 1 to n.
 - Each RPC comment gives the permission that the RPC requires and the gRPC
   codes that it returns for a bad request.
 - `google/rpc/` is a subset of googleapis for the clients. Do not change its
   field numbers. The lint does not check it.
+
+## Compatibility
+
+Scylla 0.7 runs in production with real users and data. A client of an
+older version still calls the server: a web app in an open tab, an agent on
+a machine, a script. Thus a change is additive (decision 115 of
+`scylla-ce`).
+
+- Never change the type or the meaning of a field number. Never use a
+  number again.
+- To replace a field, add the new field with the next free number. Mark the
+  old field `[deprecated = true]`. Its comment names the new field and the
+  version, for example `Deprecated in 0.7.3: read live_status.` The server
+  keeps filling the old field.
+- Remove the old field only in a later minor version. Add a `reserved` line
+  for its number and a `reserved` line for its name.
+- An RPC follows the same steps: `option deprecated = true;`, with a comment
+  that names the new RPC and the version, then a removal in a later minor
+  version.
+- Gaps in the field numbers are normal.
+- A new meaning of a field is also a breaking change, for example a count
+  that now counts fewer items. Add a new field. If no client uses the field
+  yet, you can keep the field: then write the new meaning under `Changed` in
+  `CHANGELOG.md`.
+- `buf breaking` against the base branch must pass (see Commands). Its
+  default rules refuse each removal, also with a `reserved` line. For the
+  removal of a deprecated field or RPC, use the rules `WIRE_JSON`: they
+  accept a removed field when its number and its name are reserved.
 
 ## Consumers
 
@@ -43,6 +70,8 @@ code.
 |---|---|
 | `just lint` | Lint all files. |
 | `just fmt` | Format all files. This command changes the files. |
+| `buf breaking --against '.git#ref=origin/<base>'` | Compare the files with the base branch, for example `origin/v0.7.3`. No recipe and no CI run it. |
+| `buf breaking --against '.git#ref=origin/<base>' --config '{"version":"v2","breaking":{"use":["WIRE_JSON"]}}'` | The same check, for the removal of a deprecated field or RPC. |
 
 Do these checks before each commit.
 
