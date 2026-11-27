@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-27
+
 ### Added
 
 - The mail relay of an instance, set at runtime. `MailSettingsService` (`scylla.platform.v1`):
@@ -77,6 +79,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). An 
   deprecated: read `live_status`. `ProjectCounts.pending` and `PROJECT_HEALTH_PENDING` count and
   filter the projects with a job that waits. `ProjectCounts.running` and `PROJECT_HEALTH_RUNNING` no
   longer count a project whose jobs only wait for an agent or for an approval.
+- The API is additive from 0.7: a replaced field or RPC stays deprecated until a later minor
+  version, then its number and name are reserved.
 
 ### Fixed
 
@@ -187,7 +191,8 @@ The API of the new backend. It replaces the API of the 0.6 server, with no compa
 - **Breaking:** the API of the new backend replaces the API of the 0.6 server. It keeps no
   compatibility, so the check of breaking changes is removed from the repository.
 
-[Unreleased]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/scylla-ops/scylla-protos/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/scylla-ops/scylla-protos/releases/tag/v0.7.0
